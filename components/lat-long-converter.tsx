@@ -613,7 +613,7 @@ export function LatLongConverter() {
                   </Badge>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="text-white font-bold text-sm sm:text-base tracking-wide">
+                  <div className="text-white font-bold text-xs sm:text-sm md:text-base tracking-wide">
                     {value}
                   </div>
                   {!isErrorResult(value) && (
