@@ -1,12 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Calculator, MapPin, Anchor, Route } from "lucide-react";
 
 export default function HomePage() {
   return (
-    <main className="min-h-[calc(100vh-160px)] flex items-center justify-center px-4 sm:px-6 md:px-8">
-      <div className="w-full max-w-lg mx-auto">
+    <div className="fixed inset-0 flex items-center justify-center">
+      <div className="w-full max-w-lg mx-auto px-4">
         {/* Pulsating Logo Section */}
         <div className="text-center">
           <Link href="/tools">
@@ -23,6 +21,6 @@ export default function HomePage() {
           </Link>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
