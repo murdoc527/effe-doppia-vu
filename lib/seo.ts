@@ -28,7 +28,7 @@ const baseMetadata = {
     default: APP_NAME,
   },
   description:
-    "Professional maritime navigation calculators and tools for mariners. Calculate course to steer, speed-distance-time, and vertical clearance with precision.",
+    "Navigation tools and calculators.",
   keywords: [
     "maritime navigation",
     "navigation calculator",
@@ -56,7 +56,7 @@ const baseMetadata = {
     siteName: APP_NAME,
     title: APP_NAME,
     description:
-      "Professional maritime navigation calculators and tools for mariners.",
+      "Navigation tools and calculators.",
     images: [
       {
         url: "/images/og-effe-doppia-vu.jpg",
@@ -70,7 +70,7 @@ const baseMetadata = {
     card: "summary_large_image",
     title: APP_NAME,
     description:
-      "Professional maritime navigation calculators and tools for mariners.",
+      "Navigation tools and calculators.",
     images: ["/images/og-effe-doppia-vu.jpg"],
     creator: "@effedoppiavu", // Update with actual Twitter handle
   },
@@ -202,8 +202,8 @@ export const pageMetadata = {
   home: generateMetadata({
     // No title specified = uses the default "Effe Doppia Vu"
     description:
-      "Professional maritime navigation calculators for course planning, speed-distance-time calculations, and vertical clearance assessments.",
-    keywords: ["maritime calculator", "navigation tools", "course planning"],
+      "Effe Doppia Vu - Navigation tools and calculators.",
+    keywords: ["navigation", "tools", "calculators"],
     url: "/",
   }),
 
