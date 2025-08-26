@@ -9,31 +9,40 @@ interface AppWrapperProps {
 }
 
 export function AppWrapper({ children }: AppWrapperProps) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [showContent, setShowContent] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [showLoadingScreen, setShowLoadingScreen] = useState(false);
+
+  useEffect(() => {
+    // Check if this is the first time loading the site
+    const hasVisited = sessionStorage.getItem('hasVisited');
+    
+    if (!hasVisited) {
+      // First visit - show loading screen
+      setShowLoadingScreen(true);
+      sessionStorage.setItem('hasVisited', 'true');
+    } else {
+      // Already visited - no loading screen
+      setHasLoaded(true);
+    }
+  }, []);
 
   const handleLoadingComplete = () => {
-    setIsLoading(false);
-    setShowContent(true);
+    setShowLoadingScreen(false);
+    setHasLoaded(true);
   };
 
   const handleImagesLoaded = () => {
-    // Images are loaded, but we'll let the loading screen handle timing
-    // This ensures the loading screen has enough time to feel polished
+    // Images are loaded
   };
 
   return (
     <>
-      {isLoading && <LoadingScreen onComplete={handleLoadingComplete} />}
+      {showLoadingScreen && <LoadingScreen onComplete={handleLoadingComplete} />}
 
       <BackgroundCycling onImagesLoaded={handleImagesLoaded} />
 
-      {/* Content with fade-in effect */}
-      <div
-        className={`transition-opacity duration-500 ${
-          showContent ? "opacity-100" : "opacity-0"
-        }`}
-      >
+      {/* Content - always visible after first load */}
+      <div className={hasLoaded ? "opacity-100" : "opacity-0"}>
         {children}
       </div>
     </>
