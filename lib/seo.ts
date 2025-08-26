@@ -28,7 +28,7 @@ const baseMetadata = {
     default: APP_NAME,
   },
   description:
-    "Navigation tools and calculators.",
+    "Tools and calculators.",
   keywords: [
     "maritime navigation",
     "navigation calculator",
@@ -56,7 +56,7 @@ const baseMetadata = {
     siteName: APP_NAME,
     title: APP_NAME,
     description:
-      "Navigation tools and calculators.",
+      "Tools and calculators.",
     images: [
       {
         url: "/images/og-effe-doppia-vu.jpg",
@@ -70,7 +70,7 @@ const baseMetadata = {
     card: "summary_large_image",
     title: APP_NAME,
     description:
-      "Navigation tools and calculators.",
+      "Tools and calculators.",
     images: ["/images/og-effe-doppia-vu.jpg"],
     creator: "@effedoppiavu", // Update with actual Twitter handle
   },
@@ -202,7 +202,7 @@ export const pageMetadata = {
   home: generateMetadata({
     // No title specified = uses the default "Effe Doppia Vu"
     description:
-      "Effe Doppia Vu - Navigation tools and calculators.",
+      "Effe Doppia Vu - Tools and calculators.",
     keywords: ["navigation", "tools", "calculators"],
     url: "/",
   }),
