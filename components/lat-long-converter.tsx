@@ -21,7 +21,14 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Copy, CheckCircle, AlertCircle } from "lucide-react";
+import {
+  MapPin,
+  Copy,
+  CheckCircle,
+  AlertCircle,
+  Navigation,
+  Map,
+} from "lucide-react";
 
 // Coordinate format types
 type CoordinateFormat = "DD" | "DDM" | "DMS" | "BNG" | "MGRS";
@@ -246,6 +253,32 @@ export function LatLongConverter() {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationError, setLocationError] = useState("");
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [ddCoordinates, setDdCoordinates] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+
+  // Helper function to check if a result is an error message
+  const isErrorResult = (value: string): boolean => {
+    const errorPatterns = [
+      /outside.*area/i,
+      /invalid/i,
+      /error/i,
+      /failed/i,
+      /not.*valid/i,
+      /conversion.*failed/i,
+      /unable/i,
+    ];
+    return errorPatterns.some((pattern) => pattern.test(value));
+  };
+
+  // Generate navigation URLs
+  const generateNavigationUrls = (lat: number, lng: number) => {
+    return {
+      googleMaps: `https://www.google.com/maps?q=${lat},${lng}`,
+      waze: `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`,
+    };
+  };
 
   const formatExamples = {
     DD: "50.664782,-3.4386112",
@@ -434,9 +467,11 @@ export function LatLongConverter() {
       };
 
       setResults(converted);
+      setDdCoordinates({ lat, lng });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Conversion failed");
       setResults(null);
+      setDdCoordinates(null);
     }
   };
 
@@ -444,6 +479,7 @@ export function LatLongConverter() {
     setInputValue("");
     setResults(null);
     setError("");
+    setDdCoordinates(null);
   };
 
   return (
@@ -577,23 +613,69 @@ export function LatLongConverter() {
                   </Badge>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="text-white font-mono text-sm">{value}</div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => copyToClipboard(value, format)}
-                    className="h-8 w-8 p-0 text-white/60 hover:text-white hover:bg-white/10"
-                    title={`Copy ${format} coordinates`}
-                  >
-                    {copiedField === format ? (
-                      <CheckCircle className="w-4 h-4 text-green-400" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                  </Button>
+                  <div className="text-white font-bold text-base tracking-wide">
+                    {value}
+                  </div>
+                  {!isErrorResult(value) && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => copyToClipboard(value, format)}
+                      className="h-8 w-8 p-0 text-white/60 hover:text-white hover:bg-white/10"
+                      title={`Copy ${format} coordinates`}
+                    >
+                      {copiedField === format ? (
+                        <CheckCircle className="w-4 h-4 text-green-400" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Navigation Section */}
+      {ddCoordinates && (
+        <Card className="bg-white/10 backdrop-blur-md border-white/20">
+          <CardHeader>
+            <CardTitle className="text-white text-lg flex items-center gap-2">
+              <Navigation className="w-5 h-5" />
+              Navigate to Location
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                onClick={() => {
+                  const urls = generateNavigationUrls(
+                    ddCoordinates.lat,
+                    ddCoordinates.lng
+                  );
+                  window.open(urls.googleMaps, "_blank");
+                }}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+              >
+                <Map className="w-4 h-4" />
+                Open in Google Maps
+              </Button>
+              <Button
+                onClick={() => {
+                  const urls = generateNavigationUrls(
+                    ddCoordinates.lat,
+                    ddCoordinates.lng
+                  );
+                  window.open(urls.waze, "_blank");
+                }}
+                className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white flex items-center gap-2"
+              >
+                <Navigation className="w-4 h-4" />
+                Open in Waze
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
