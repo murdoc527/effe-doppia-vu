@@ -5,8 +5,8 @@ import { Calculator, MapPin, Anchor, Route } from "lucide-react";
 
 export default function HomePage() {
   return (
-    <main className="min-h-[calc(100vh-80px)] flex items-center justify-center px-4 sm:px-6 md:px-8 pt-20 sm:pt-16 md:pt-12">
-      <div className="w-full max-w-lg mx-auto">
+    <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className="w-full max-w-lg mx-auto px-4">
         {/* Pulsating Logo Section */}
         <div className="text-center">
           <Link href="/tools">
@@ -23,6 +23,6 @@ export default function HomePage() {
           </Link>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
