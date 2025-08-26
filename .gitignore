@@ -130,3 +130,4 @@ __pycache__/
 mobile-testing-guide.md
 HTTPS-DEV-README.md
 *.backup
+.vercel

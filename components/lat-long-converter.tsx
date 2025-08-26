@@ -575,13 +575,6 @@ export function LatLongConverter() {
                   >
                     {format}
                   </Badge>
-                  <span className="text-white/80 text-sm flex-shrink-0">
-                    {format === "DD" && "Decimal Degrees"}
-                    {format === "DDM" && "Degrees Decimal Minutes"}
-                    {format === "DMS" && "Degrees Minutes Seconds"}
-                    {format === "BNG" && "British National Grid"}
-                    {format === "MGRS" && "Military Grid Reference"}
-                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="text-white font-mono text-sm">{value}</div>
