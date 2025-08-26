@@ -12,13 +12,24 @@ interface BackgroundCyclingProps {
   onImagesLoaded?: () => void;
 }
 
-export function BackgroundCycling({ onImagesLoaded }: BackgroundCyclingProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
-  const [allImagesLoaded, setAllImagesLoaded] = useState(false);
+// Global state to persist across navigation
+let globalCurrentIndex = 0;
+let globalImagesLoaded = false;
+let globalCyclingInterval: NodeJS.Timeout | null = null;
 
-  // Preload images
+export function BackgroundCycling({ onImagesLoaded }: BackgroundCyclingProps) {
+  const [currentIndex, setCurrentIndex] = useState(globalCurrentIndex);
+  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
+  const [allImagesLoaded, setAllImagesLoaded] = useState(globalImagesLoaded);
+
+  // Preload images only if not already loaded
   useEffect(() => {
+    if (globalImagesLoaded) {
+      setAllImagesLoaded(true);
+      onImagesLoaded?.();
+      return;
+    }
+
     const preloadImages = async () => {
       const imagePromises = images.map((src) => {
         return new Promise<string>((resolve, reject) => {
@@ -33,11 +44,12 @@ export function BackgroundCycling({ onImagesLoaded }: BackgroundCyclingProps) {
         const loadedSrcs = await Promise.all(imagePromises);
         setLoadedImages(new Set(loadedSrcs));
         setAllImagesLoaded(true);
+        globalImagesLoaded = true;
         onImagesLoaded?.();
       } catch (error) {
         console.error("Failed to preload background images:", error);
-        // Still show images even if preloading fails
         setAllImagesLoaded(true);
+        globalImagesLoaded = true;
         onImagesLoaded?.();
       }
     };
@@ -49,11 +61,23 @@ export function BackgroundCycling({ onImagesLoaded }: BackgroundCyclingProps) {
   useEffect(() => {
     if (!allImagesLoaded) return;
 
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % images.length);
+    // Clear any existing interval
+    if (globalCyclingInterval) {
+      clearInterval(globalCyclingInterval);
+    }
+
+    // Start new interval
+    globalCyclingInterval = setInterval(() => {
+      globalCurrentIndex = (globalCurrentIndex + 1) % images.length;
+      setCurrentIndex(globalCurrentIndex);
     }, 6000); // Change every 6 seconds
 
-    return () => clearInterval(interval);
+    return () => {
+      if (globalCyclingInterval) {
+        clearInterval(globalCyclingInterval);
+        globalCyclingInterval = null;
+      }
+    };
   }, [allImagesLoaded]);
 
   return (
