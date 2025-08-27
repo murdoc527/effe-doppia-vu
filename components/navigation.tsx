@@ -8,34 +8,23 @@ import Image from "next/image";
 export function Navigation() {
   const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
 
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       
-      // Show nav when at top of page
-      if (currentScrollY < 10) {
-        setIsVisible(true);
-      }
-      // Hide when scrolling down, show when scrolling up
-      else if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        setIsVisible(false);
-      } else if (currentScrollY < lastScrollY) {
-        setIsVisible(true);
-      }
-      
-      setLastScrollY(currentScrollY);
+      // Show nav only when at the very top of the page
+      setIsVisible(currentScrollY <= 0);
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScrollY]);
+  }, []);
 
   return (
-    <nav 
-      className={`fixed top-0 left-0 right-0 z-50 p-3 sm:p-6 lg:p-8 transition-transform duration-300 ease-in-out ${
-        isVisible ? 'translate-y-0' : '-translate-y-full'
+    <nav
+      className={`fixed top-0 left-0 right-0 z-50 p-3 sm:p-6 lg:p-8 transition-opacity duration-300 ease-in-out ${
+        isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
       }`}
     >
       <div className="max-w-7xl mx-auto">
