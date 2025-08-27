@@ -61,7 +61,7 @@ const baseMetadata = {
       "Professional maritime navigation tools and calculators for mariners. Features coordinate conversion, course planning, clearance calculations, and more.",
     images: [
       {
-        url: "/images/og-effe-doppia-vu.jpg",
+        url: "/images/og-effe-doppia-vu.jpg?v=2",
         width: 1200,
         height: 630,
         alt: "Effe Doppia Vu - Professional Maritime Navigation Tools & Calculators",
@@ -74,7 +74,7 @@ const baseMetadata = {
     title: APP_NAME,
     description:
       "Professional maritime navigation tools and calculators for mariners. Features coordinate conversion, course planning, clearance calculations, and more.",
-    images: ["/images/og-effe-doppia-vu.jpg"],
+    images: ["/images/og-effe-doppia-vu.jpg?v=2"],
     creator: "@effedoppiavu", // Update with actual Twitter handle
   },
   robots: {
