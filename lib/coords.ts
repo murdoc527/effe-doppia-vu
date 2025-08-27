@@ -176,3 +176,85 @@ export function isErrorResult(value: string): boolean {
   ];
   return errorPatterns.some((pattern) => pattern.test(value));
 }
+
+// Parse MGRS coordinate string to lat/lng
+export function parseMGRS(mgrsString: string): Coordinates | null {
+  try {
+    const cleaned = mgrsString.replace(/\s+/g, "").toUpperCase();
+    const [lat, lng] = mgrs.toPoint(cleaned);
+    return { lat, lng };
+  } catch (error) {
+    console.warn("MGRS parsing failed:", error);
+    return null;
+  }
+}
+
+// Parse BNG coordinate string to lat/lng
+export function parseBNG(bngString: string): Coordinates | null {
+  try {
+    const trimmed = bngString.trim().toUpperCase();
+
+    // Match BNG format: "TQ 12345 67890" or "TQ123456789"
+    const bngPattern = /^([A-Z]{2})\s*(\d{3,5})\s*(\d{3,5})$/;
+    const match = trimmed.match(bngPattern);
+
+    if (!match) {
+      return null;
+    }
+
+    const [, gridSquare, easting, northing] = match;
+
+    // Find grid square position
+    let gridRow = -1;
+    let gridCol = -1;
+
+    for (let row = 0; row < GRID_LETTERS.length; row++) {
+      const col = GRID_LETTERS[row].indexOf(gridSquare);
+      if (col !== -1) {
+        gridRow = row;
+        gridCol = col;
+        break;
+      }
+    }
+
+    if (gridRow === -1) {
+      throw new Error("Invalid BNG grid square");
+    }
+
+    // Calculate full easting and northing
+    const fullEasting = gridCol * 100000 + parseInt(easting.padEnd(5, "0"));
+    const fullNorthing = gridRow * 100000 + parseInt(northing.padEnd(5, "0"));
+
+    // Convert from OSGB36 to WGS84
+    const [lng, lat] = proj4("EPSG:27700", WGS84, [fullEasting, fullNorthing]);
+    return { lat, lng };
+  } catch (error) {
+    console.warn("BNG parsing failed:", error);
+    return null;
+  }
+}
+
+// Parse decimal degrees string to lat/lng
+export function parseDD(ddString: string): Coordinates | null {
+  try {
+    const trimmed = ddString.trim();
+    const ddPattern = /^(-?\d+\.?\d*)\s*,?\s*(-?\d+\.?\d*)$/;
+    const match = trimmed.match(ddPattern);
+
+    if (!match) {
+      return null;
+    }
+
+    const lat = parseFloat(match[1]);
+    const lng = parseFloat(match[2]);
+
+    if (validateDD(lat, lng)) {
+      return { lat, lng };
+    }
+
+    return null;
+  } catch (error) {
+    console.warn("DD parsing failed:", error);
+    return null;
+  }
+}

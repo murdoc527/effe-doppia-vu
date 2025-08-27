@@ -6,6 +6,9 @@ import {
   convertCoordinates,
   generateNavigationUrls,
   isErrorResult,
+  parseMGRS,
+  parseBNG,
+  parseDD,
   type CoordinateFormat,
   type FormattedCoordinates,
 } from "@/lib/coords";
@@ -14,6 +17,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   Copy,
   CheckCircle,
@@ -21,6 +37,10 @@ import {
   Crosshair,
   Navigation,
   Layers,
+  ChevronDown,
+  Search,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 interface GoogleMapsCrosshairProps {
@@ -39,18 +59,21 @@ export function GoogleMapsCrosshair({
   const [coordinates, setCoordinates] = useState<FormattedCoordinates | null>(
     null
   );
-  const [selectedFormats, setSelectedFormats] = useState<Set<CoordinateFormat>>(
-    new Set(["DD", "DDM", "DMS", "BNG", "MGRS"])
-  );
+  const [currentFormatIndex, setCurrentFormatIndex] = useState(0);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [mapType, setMapType] = useState<
     "roadmap" | "satellite" | "hybrid" | "terrain"
-  >("roadmap");
+  >("hybrid");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const map = useRef<google.maps.Map | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const autocomplete = useRef<google.maps.places.Autocomplete | null>(null);
 
   // Convert current center to all coordinate formats
   const updateCoordinates = () => {
@@ -69,6 +92,17 @@ export function GoogleMapsCrosshair({
     }
   };
 
+  // Check for mobile viewport
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   // Initialize Google Maps
   useEffect(() => {
     if (!apiKey) {
@@ -80,7 +114,7 @@ export function GoogleMapsCrosshair({
     const loader = new Loader({
       apiKey: apiKey,
       version: "weekly",
-      libraries: ["maps"],
+      libraries: ["maps", "places", "marker"],
     });
 
     loader
@@ -93,7 +127,7 @@ export function GoogleMapsCrosshair({
             mapTypeId: mapType,
             disableDefaultUI: false,
             zoomControl: true,
-            mapTypeControl: true,
+            mapTypeControl: false, // Disable built-in map type control
             scaleControl: true,
             streetViewControl: false,
             rotateControl: false,
@@ -105,6 +139,32 @@ export function GoogleMapsCrosshair({
           map.current.addListener("center_changed", updateCoordinates);
           map.current.addListener("zoom_changed", updateCoordinates);
 
+          // Initialize Places Autocomplete (New API)
+          if (searchInputRef.current) {
+            try {
+              autocomplete.current = new google.maps.places.Autocomplete(
+                searchInputRef.current,
+                {
+                  types: ["establishment", "geocode"],
+                  fields: ["place_id", "geometry", "name", "formatted_address"],
+                }
+              );
+
+              autocomplete.current.addListener("place_changed", () => {
+                const place = autocomplete.current?.getPlace();
+                if (place?.geometry?.location && map.current) {
+                  const location = place.geometry.location;
+                  map.current.setCenter(location);
+                  map.current.setZoom(15);
+                  setSearchValue(place.formatted_address || place.name || "");
+                  setIsSearching(false);
+                }
+              });
+            } catch (error) {
+              console.warn("Places Autocomplete not available:", error);
+            }
+          }
+
           // Initial coordinate update
           updateCoordinates();
           setIsLoading(false);
@@ -115,7 +175,7 @@ export function GoogleMapsCrosshair({
         setError("Failed to load Google Maps. Please check your API key.");
         setIsLoading(false);
       });
-  }, [apiKey, initialCenter, initialZoom, mapType]);
+  }, [apiKey, initialCenter, initialZoom]);
 
   // Change map type
   const changeMapType = (
@@ -137,14 +197,18 @@ export function GoogleMapsCrosshair({
     }
   };
 
-  const toggleFormat = (format: CoordinateFormat) => {
-    const newFormats = new Set(selectedFormats);
-    if (newFormats.has(format)) {
-      newFormats.delete(format);
-    } else {
-      newFormats.add(format);
-    }
-    setSelectedFormats(newFormats);
+  const nextFormat = () => {
+    setCurrentFormatIndex((prev) => (prev + 1) % formatDisplays.length);
+  };
+
+  const prevFormat = () => {
+    setCurrentFormatIndex((prev) =>
+      prev === 0 ? formatDisplays.length - 1 : prev - 1
+    );
+  };
+
+  const goToFormat = (index: number) => {
+    setCurrentFormatIndex(index);
   };
 
   const getNavigationUrls = () => {
@@ -174,6 +238,72 @@ export function GoogleMapsCrosshair({
       );
     } else {
       alert("Geolocation is not supported by this browser.");
+    }
+  };
+
+  const parseCoordinateInput = (
+    input: string
+  ): { lat: number; lng: number } | null => {
+    // Try MGRS format first
+    const mgrsResult = parseMGRS(input);
+    if (mgrsResult) return mgrsResult;
+
+    // Try BNG format
+    const bngResult = parseBNG(input);
+    if (bngResult) return bngResult;
+
+    // Try DD format
+    const ddResult = parseDD(input);
+    if (ddResult) return ddResult;
+
+    return null;
+  };
+
+  const handleSearchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchValue.trim() || !map.current) return;
+
+    setIsSearching(true);
+
+    try {
+      // First try to parse as coordinate input (MGRS, BNG, DD)
+      const coords = parseCoordinateInput(searchValue);
+
+      if (coords) {
+        // Direct coordinate input - center map immediately
+        map.current.setCenter({ lat: coords.lat, lng: coords.lng });
+        map.current.setZoom(15);
+        setIsSearching(false);
+        return;
+      }
+
+      // Fall back to geocoding for address/place search
+      const geocoder = new google.maps.Geocoder();
+
+      geocoder.geocode(
+        {
+          address: searchValue,
+        },
+        (results, status) => {
+          setIsSearching(false);
+          if (status === google.maps.GeocoderStatus.OK && results?.[0]) {
+            const result = results[0];
+            if (result.geometry?.location && map.current) {
+              map.current.setCenter(result.geometry.location);
+              map.current.setZoom(15);
+              setSearchValue(result.formatted_address || searchValue);
+            }
+          } else {
+            alert(
+              "Location not found. Please try a different search term or coordinate format."
+            );
+          }
+        }
+      );
+    } catch (error) {
+      console.error("Search error:", error);
+      setIsSearching(false);
+      alert("Search service unavailable. Please try again later.");
     }
   };
 
@@ -232,44 +362,65 @@ export function GoogleMapsCrosshair({
     <div className="w-full max-w-6xl mx-auto space-y-6">
       {/* Map Container */}
       <Card className="overflow-hidden bg-white/10 backdrop-blur-md border-white/20">
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-white">
-            <Crosshair className="w-5 h-5" />
-            Google Maps with Crosshair
-          </CardTitle>
-          <p className="text-white/80 text-sm">
-            Move the map to see real-time coordinates at the crosshair center.
-            Toggle coordinate formats and copy results.
-          </p>
-        </CardHeader>
-        <CardContent className="p-4">
-          <div className="space-y-4">
-            {/* Map Type Controls */}
-            <div className="flex flex-wrap gap-2">
-              <span className="text-white font-medium">Map type:</span>
-              {mapTypes.map((type) => (
-                <Button
-                  key={type.id}
-                  size="sm"
-                  variant={mapType === type.id ? "default" : "outline"}
-                  onClick={() => changeMapType(type.id as any)}
-                  className={
-                    mapType === type.id
-                      ? "bg-white text-black"
-                      : "bg-white/20 text-white border-white/30 hover:bg-white/30"
-                  }
-                >
-                  <Layers className="w-4 h-4 mr-1" />
-                  {type.label}
-                </Button>
-              ))}
+        <CardContent className="p-2 sm:p-4">
+          <div className="space-y-2 sm:space-y-4">
+            {/* Location Search */}
+            <form onSubmit={handleSearchSubmit} className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/60" />
+                <Input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search places, or enter coordinates (MGRS, BNG, DD)..."
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  className="pl-10 bg-white/20 text-white border-white/30 placeholder:text-white/60 hover:bg-white/30 focus:bg-white/30 h-10"
+                />
+              </div>
               <Button
-                size="sm"
-                onClick={getCurrentLocation}
-                className="bg-blue-600 hover:bg-blue-700 text-white ml-auto"
+                type="submit"
+                disabled={isSearching || !searchValue.trim()}
+                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white h-10 px-4"
               >
-                <MapPin className="w-4 h-4 mr-1" />
-                My Location
+                {isSearching ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Search className="w-4 h-4" />
+                )}
+              </Button>
+            </form>
+
+            {/* Map Type Controls - Mobile Optimized */}
+            <div className="flex gap-2 items-center">
+              <div className="flex items-center gap-2 flex-1">
+                <Layers className="w-4 h-4 text-white flex-shrink-0" />
+                <Select
+                  value={mapType}
+                  onValueChange={(value) => changeMapType(value as any)}
+                >
+                  <SelectTrigger className="w-full bg-white/20 text-white border-white/30 hover:bg-white/30 h-10">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-black/90 border-white/20">
+                    {mapTypes.map((type) => (
+                      <SelectItem
+                        key={type.id}
+                        value={type.id}
+                        className="text-white hover:bg-white/20 focus:bg-white/20"
+                      >
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                onClick={getCurrentLocation}
+                className="bg-blue-600 hover:bg-blue-700 text-white h-10 flex-shrink-0"
+              >
+                <MapPin className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">My Location</span>
+                <span className="xs:hidden">Location</span>
               </Button>
             </div>
 
@@ -278,7 +429,7 @@ export function GoogleMapsCrosshair({
               <div
                 ref={mapRef}
                 className="w-full border-2 border-white/20 rounded-lg overflow-hidden"
-                style={{ height: `${height}px` }}
+                style={{ height: isMobile ? "75vh" : `${height}px` }}
               />
 
               {/* Loading State */}
@@ -299,99 +450,135 @@ export function GoogleMapsCrosshair({
                     <div className="absolute w-8 h-0.5 bg-red-500 shadow-lg -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2"></div>
                     {/* Vertical line */}
                     <div className="absolute w-0.5 h-8 bg-red-500 shadow-lg -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2"></div>
-                    {/* Center circle */}
-                    <div className="absolute w-3 h-3 bg-red-500 rounded-full shadow-lg -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2 border-2 border-white"></div>
                   </div>
                 </div>
               )}
-            </div>
 
-            {/* Format Toggles */}
-            <div className="flex flex-wrap gap-3">
-              <span className="text-white font-medium">Show formats:</span>
-              {formatDisplays.map(({ key, label }) => (
-                <div key={key} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`format-${key}`}
-                    checked={selectedFormats.has(key)}
-                    onCheckedChange={() => toggleFormat(key)}
-                    className="border-white/30"
-                  />
-                  <Label
-                    htmlFor={`format-${key}`}
-                    className="text-white/90 text-sm"
-                  >
-                    {key}
-                  </Label>
-                </div>
-              ))}
-            </div>
+              {/* Coordinate Slider Overlay */}
+              {!isLoading && coordinates && (
+                <div className="absolute top-2 left-2 right-2 pointer-events-auto">
+                  <div className="bg-black/90 backdrop-blur-sm rounded-lg border border-white/30 p-3 sm:p-4">
+                    {/* Current Format Display */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          className={`${formatDisplays[currentFormatIndex].color} text-xs px-2 py-1`}
+                        >
+                          {formatDisplays[currentFormatIndex].key}
+                        </Badge>
+                        <span className="text-white text-sm font-medium hidden sm:inline">
+                          {formatDisplays[currentFormatIndex].label}
+                        </span>
+                      </div>
 
-            {/* Coordinate Results */}
-            {coordinates && (
-              <div className="space-y-3">
-                {formatDisplays
-                  .filter(({ key }) => selectedFormats.has(key))
-                  .map(({ key, label, color }) => {
-                    const value = coordinates[key];
-                    const isError = isErrorResult(value);
+                      {/* Navigation Controls */}
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={prevFormat}
+                          className="h-8 w-8 p-0 text-white/60 hover:text-white hover:bg-white/20"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </Button>
+                        <span className="text-white/60 text-xs px-2">
+                          {currentFormatIndex + 1}/{formatDisplays.length}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={nextFormat}
+                          className="h-8 w-8 p-0 text-white/60 hover:text-white hover:bg-white/20"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
 
-                    return (
-                      <div
-                        key={key}
-                        className="flex items-center justify-between p-3 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20"
-                      >
-                        <div className="flex items-center gap-3 flex-1">
-                          <Badge className={color}>{key}</Badge>
-                          <div>
-                            <div className="text-white font-medium text-sm">
-                              {label}
-                            </div>
+                    {/* Coordinate Value */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1">
+                        {(() => {
+                          const currentFormat =
+                            formatDisplays[currentFormatIndex];
+                          const value = coordinates[currentFormat.key];
+                          const isError = isErrorResult(value);
+
+                          return (
                             <div
-                              className={`font-mono text-sm ${
-                                isError ? "text-red-300" : "text-white/90"
-                              }`}
+                              className={`${
+                                isError
+                                  ? "text-red-300 text-sm"
+                                  : "text-white font-bold text-sm sm:text-base tracking-wide font-mono"
+                              } break-all`}
                             >
                               {value}
                             </div>
-                          </div>
-                        </div>
-                        {!isError && (
+                          );
+                        })()}
+                      </div>
+
+                      {/* Copy Button */}
+                      {(() => {
+                        const currentFormat =
+                          formatDisplays[currentFormatIndex];
+                        const value = coordinates[currentFormat.key];
+                        const isError = isErrorResult(value);
+
+                        return !isError ? (
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => copyToClipboard(value, key)}
-                            className="text-white/80 hover:text-white hover:bg-white/10"
+                            onClick={() =>
+                              copyToClipboard(value, currentFormat.key)
+                            }
+                            className="h-8 w-8 p-0 text-white/60 hover:text-white hover:bg-white/20 flex-shrink-0"
                           >
-                            {copiedField === key ? (
+                            {copiedField === currentFormat.key ? (
                               <CheckCircle className="w-4 h-4 text-green-400" />
                             ) : (
                               <Copy className="w-4 h-4" />
                             )}
                           </Button>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-            )}
+                        ) : null;
+                      })()}
+                    </div>
 
-            {/* Navigation Links */}
-            <div className="flex gap-3">
+                    {/* Format Indicators */}
+                    <div className="flex justify-center gap-1 mt-3">
+                      {formatDisplays.map((_, index) => (
+                        <button
+                          key={index}
+                          onClick={() => goToFormat(index)}
+                          className={`w-2 h-2 rounded-full transition-colors ${
+                            index === currentFormatIndex
+                              ? "bg-white"
+                              : "bg-white/30 hover:bg-white/50"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Navigation Links - Mobile Optimized */}
+            <div className="flex gap-2">
               <Button
                 onClick={() =>
                   window.open(getNavigationUrls().googleMaps, "_blank")
                 }
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-blue-600 hover:bg-blue-700 text-white h-10 flex-1 text-xs sm:text-sm"
               >
-                <Navigation className="w-4 h-4 mr-2" />
+                <Navigation className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />
                 Google Maps
               </Button>
               <Button
                 onClick={() => window.open(getNavigationUrls().waze, "_blank")}
-                className="bg-cyan-600 hover:bg-cyan-700 text-white"
+                className="bg-cyan-600 hover:bg-cyan-700 text-white h-10 flex-1 text-xs sm:text-sm"
               >
-                <Navigation className="w-4 h-4 mr-2" />
+                <Navigation className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />
                 Waze
               </Button>
             </div>

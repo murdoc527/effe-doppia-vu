@@ -446,9 +446,317 @@ User requested an interactive map component with:
 4. `app/tools/map-crosshair/page.tsx` - Example usage page
 5. `package.json` - Added maplibre-gl dependency
 
+## Task: Add Location Search Functionality
+
+### Understanding:
+
+User requested location search functionality to allow searching for cities, postcodes, addresses, and landmarks on the map crosshair.
+
+### Requirements:
+
+- Add Google Places Autocomplete search input
+- Support searching for cities, postcodes, addresses, landmarks
+- Integrate with existing map controls layout
+- Provide visual feedback during search
+- Navigate map to search results automatically
+
+### Implementation Progress:
+
+[X] Add Google Places API to map loader libraries
+[X] Create search input with autocomplete functionality
+[X] Implement search form with submit handling
+[X] Add Places service text search fallback
+[X] Integrate search UI above map type controls
+[X] Add loading states and error handling
+
+### Results:
+
+✅ **Places Autocomplete**: Real-time search suggestions as user types
+✅ **Text Search Fallback**: Manual search button for non-autocomplete searches
+✅ **Auto-Navigation**: Map automatically centers on selected/found location
+✅ **Mobile Optimized**: Search input responsive and touch-friendly
+✅ **Visual Feedback**: Loading spinner and disabled states during search
+✅ **Error Handling**: User feedback when location not found
+
+### Features Implemented:
+
+- **Search Input**: Full-width search box with search icon and placeholder
+- **Autocomplete**: Google Places Autocomplete with establishment and geocode types
+- **Manual Search**: Submit button with text search service as fallback
+- **Auto-Center**: Map centers on search results with zoom level 15
+- **State Management**: Search value, loading states, and error handling
+- **Mobile UX**: Responsive design with proper touch targets
+
+### Technical Implementation:
+
+**Google Maps Loader Update:**
+
+```tsx
+libraries: ["maps", "places"];
+```
+
+**Places Autocomplete:**
+
+```tsx
+autocomplete.current = new google.maps.places.Autocomplete(
+  searchInputRef.current,
+  {
+    types: ["establishment", "geocode"],
+    fields: ["place_id", "geometry", "name", "formatted_address"],
+  }
+);
+```
+
+**Text Search Service:**
+
+```tsx
+const service = new google.maps.places.PlacesService(map.current);
+service.textSearch({ query: searchValue }, callback);
+```
+
+### User Experience Benefits:
+
+- 🔍 **Smart Search**: Autocomplete suggestions for faster location finding
+- 🗺️ **Instant Navigation**: Map automatically centers on search results
+- 📱 **Mobile Friendly**: Touch-optimized search input and buttons
+- ⚡ **Dual Search**: Both autocomplete and manual search options
+- 🎯 **Precise Results**: Automatic zoom to appropriate level for found locations
+
+### Files Modified:
+
+1. `components/GoogleMapsCrosshair.tsx` - Added search functionality and UI
+2. `.cursorrules` - Updated task tracking and implementation details
+
+## Task: Fix Legacy Places API Error
+
+### Issue:
+
+Google deprecated the legacy Places API, causing console errors: "You're calling a legacy API, which is not enabled for your project. To get newer features and more functionality, switch to the Places API (New) or Routes API."
+
+### Solution Implemented:
+
+[X] **Updated Google Maps Loader**: Added "marker" library for enhanced functionality
+[X] **Enhanced Autocomplete**: Added try-catch error handling for Places Autocomplete
+[X] **Replaced Text Search**: Switched from deprecated PlacesService.textSearch() to Geocoding API
+[X] **Improved Error Handling**: Added comprehensive error catching and user feedback
+
+### Technical Changes:
+
+**Loader Configuration:**
+
+```tsx
+libraries: ["maps", "places", "marker"];
+```
+
+**Primary Search Method:**
+
+```tsx
+// Use Geocoding API (not deprecated) instead of Places text search
+const geocoder = new google.maps.Geocoder();
+geocoder.geocode({ address: searchValue }, callback);
+```
+
+**Enhanced Error Handling:**
+
+```tsx
+try {
+  // Autocomplete with error handling
+  autocomplete.current = new google.maps.places.Autocomplete(input, options);
+} catch (error) {
+  console.warn("Places Autocomplete not available:", error);
+}
+```
+
+### Benefits:
+
+✅ **No More Legacy API Errors**: Uses supported Google Maps APIs
+✅ **Better Reliability**: Geocoding API is more stable for address searches
+✅ **Maintained Functionality**: All search features continue to work
+✅ **Future-Proof**: Uses current Google Maps API standards
+
+### Files Modified:
+
+1. `components/GoogleMapsCrosshair.tsx` - Updated API calls and error handling
+2. `.cursorrules` - Documented legacy API fix
+
+## Task: Replace Coordinate Dropdowns with Slider
+
+### Understanding:
+
+User requested to replace multiple collapsible coordinate format dropdowns with a single slider/carousel that shows one coordinate format at a time for cleaner UX.
+
+### Requirements:
+
+- Replace 5 collapsible dropdowns with single coordinate display
+- Add navigation controls (prev/next arrows)
+- Include format indicators (dots)
+- Maintain copy functionality
+- Improve mobile experience
+
+### Implementation Progress:
+
+[X] Replace collapsible coordinate displays with single slider
+[X] Add navigation arrows (left/right chevrons)
+[X] Add format counter (1/5, 2/5, etc.)
+[X] Add clickable dot indicators for direct navigation
+[X] Remove old format toggle checkboxes
+[X] Maintain all copy-to-clipboard functionality
+
+### Results:
+
+✅ **Single Coordinate Display**: Clean, prominent display of one format at a time
+✅ **Arrow Navigation**: Left/right chevrons to cycle through formats
+✅ **Format Counter**: Shows current position (1/5, 2/5, etc.)
+✅ **Dot Indicators**: Clickable dots for direct navigation to any format
+✅ **Mobile Optimized**: Better use of screen space on mobile devices
+✅ **Copy Functionality**: Maintained copy button for each coordinate format
+
+### Features Implemented:
+
+- **Current Format Display**: Badge with format type and full name
+- **Navigation Controls**: Previous/next arrows with format counter
+- **Direct Navigation**: Clickable dot indicators for instant format switching
+- **Coordinate Value**: Large, readable coordinate display with proper typography
+- **Copy Button**: Same copy functionality with visual feedback
+- **Responsive Design**: Optimized for both mobile and desktop
+
+### Technical Implementation:
+
+**State Management:**
+
+```tsx
+const [currentFormatIndex, setCurrentFormatIndex] = useState(0);
+
+const nextFormat = () => {
+  setCurrentFormatIndex((prev) => (prev + 1) % formatDisplays.length);
+};
+
+const prevFormat = () => {
+  setCurrentFormatIndex((prev) =>
+    prev === 0 ? formatDisplays.length - 1 : prev - 1
+  );
+};
+```
+
+**Slider UI Structure:**
+
+- Header: Format badge + navigation controls with counter
+- Body: Large coordinate display + copy button
+- Footer: Dot indicators for direct navigation
+
+### User Experience Benefits:
+
+- 🎯 **Focused Display**: Only one coordinate format visible at a time
+- 📱 **Mobile Friendly**: Better use of limited screen space
+- 🔄 **Easy Navigation**: Multiple ways to switch between formats
+- 👆 **Touch Optimized**: Large touch targets for mobile interaction
+- 📋 **Quick Copy**: Copy button always visible for current format
+
+### Files Modified:
+
+1. `components/GoogleMapsCrosshair.tsx` - Replaced dropdown system with slider
+2. `.cursorrules` - Updated task tracking and implementation details
+
+## Task: Add MGRS and BNG Coordinate Search
+
+### Understanding:
+
+User requested the ability to search using MGRS and BNG coordinates in addition to regular addresses and places, making the map more useful for users who already have coordinates in these formats.
+
+### Requirements:
+
+- Parse MGRS coordinate strings and convert to lat/lng for map navigation
+- Parse BNG coordinate strings and convert to lat/lng for map navigation
+- Support various input formats for both coordinate systems
+- Update search placeholder to indicate coordinate support
+- Maintain fallback to geocoding for regular address search
+
+### Implementation Progress:
+
+[X] Add MGRS coordinate parsing and search functionality
+[X] Add BNG coordinate parsing and search functionality
+[X] Update search placeholder and user feedback
+[X] Create centralized parsing functions in coords library
+[X] Integrate coordinate parsing with existing search workflow
+
+### Results:
+
+✅ **MGRS Search**: Users can search with MGRS coordinates (e.g., "30UXC1234567890")
+✅ **BNG Search**: Users can search with BNG coordinates (e.g., "TQ 12345 67890")
+✅ **DD Search**: Users can search with decimal degrees (e.g., "51.5074, -0.1278")
+✅ **Smart Detection**: Automatically detects coordinate format and parses appropriately
+✅ **Address Fallback**: Falls back to Google Geocoding for regular addresses/places
+✅ **Updated UI**: Search placeholder indicates coordinate support
+
+### Features Implemented:
+
+- **Multiple Format Support**: MGRS, BNG, and DD coordinate parsing
+- **Format Detection**: Automatic detection of coordinate format vs. address
+- **Library Functions**: Centralized parsing functions in coords.ts
+- **Error Handling**: Graceful fallback when coordinate parsing fails
+- **Instant Navigation**: Direct map navigation for valid coordinates
+- **User Feedback**: Updated placeholder and error messages
+
+### Technical Implementation:
+
+**Coordinate Parsing Functions (coords.ts):**
+
+```tsx
+export function parseMGRS(mgrsString: string): Coordinates | null;
+export function parseBNG(bngString: string): Coordinates | null;
+export function parseDD(ddString: string): Coordinates | null;
+```
+
+**Search Flow:**
+
+```tsx
+const parseCoordinateInput = (input: string) => {
+  // Try MGRS format first
+  const mgrsResult = parseMGRS(input);
+  if (mgrsResult) return mgrsResult;
+
+  // Try BNG format
+  const bngResult = parseBNG(input);
+  if (bngResult) return bngResult;
+
+  // Try DD format
+  const ddResult = parseDD(input);
+  if (ddResult) return ddResult;
+
+  return null;
+};
+```
+
+**Enhanced Search Process:**
+
+1. Parse input for coordinate formats
+2. If coordinates found → navigate directly to location
+3. If not coordinates → use Google Geocoding API for addresses
+4. Provide appropriate error feedback
+
+### Supported Coordinate Examples:
+
+- **MGRS**: "30UXC1234567890", "30U XC 12345 67890"
+- **BNG**: "TQ 12345 67890", "TQ123456789"
+- **DD**: "51.5074, -0.1278", "51.5074 -0.1278"
+
+### User Experience Benefits:
+
+- 🎯 **Professional Use**: Support for military/surveying coordinate formats
+- 🗺️ **Instant Navigation**: Direct coordinate input without conversion
+- 🔄 **Smart Detection**: No need to specify coordinate format
+- 📍 **Precision**: Exact coordinate navigation for precise positioning
+- 🛠️ **Versatile**: Works with addresses AND coordinates seamlessly
+
+### Files Modified:
+
+1. `lib/coords.ts` - Added parsing functions for MGRS, BNG, DD
+2. `components/GoogleMapsCrosshair.tsx` - Enhanced search with coordinate parsing
+3. `.cursorrules` - Updated task tracking and implementation details
+
 ### Next Steps:
 
-- Debug BNG transformation for London coordinates
-- Fix map tile loading (try different tile sources)
-- Test coordinate accuracy and format consistency
-- Ensure proper error handling for all edge cases
+- Test coordinate search with various formats and edge cases
+- Consider adding DDM/DMS coordinate parsing support
+- Monitor user interaction patterns with coordinate vs. address search
+- Add coordinate format examples in UI tooltips

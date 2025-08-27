@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import proj4 from "proj4";
 import * as mgrs from "mgrs";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -505,6 +506,32 @@ export function LatLongConverter() {
           <CardDescription className="text-white/80">
             Enter coordinates in your preferred format
           </CardDescription>
+          
+          {/* Navigation Options */}
+          <div className="flex gap-2 pt-4">
+            <Button 
+              variant="secondary" 
+              size="sm" 
+              className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+              asChild
+            >
+              <span className="flex items-center gap-2">
+                <Navigation className="w-4 h-4" />
+                Standard Converter
+              </span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="border-white/30 text-white hover:bg-white/20 hover:text-white"
+              asChild
+            >
+              <Link href="/tools/map-crosshair" className="flex items-center gap-2">
+                <Map className="w-4 h-4" />
+                Interactive Map
+              </Link>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">

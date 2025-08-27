@@ -3,7 +3,7 @@
  * Provides comprehensive SEO optimization for all pages
  */
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 // Use direct environment variables to avoid SSR issues
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Effe Doppia Vu";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://effedoppiavu.co.uk";
@@ -48,8 +48,6 @@ const baseMetadata = {
     address: false,
     telephone: false,
   },
-  viewport: "width=device-width, initial-scale=1",
-  themeColor: "#ffffff",
   category: "Navigation Tools",
   openGraph: {
     type: "website",
@@ -93,6 +91,15 @@ const baseMetadata = {
     // No HTML meta tag verification needed
   },
 } satisfies Metadata;
+
+/**
+ * Base viewport configuration
+ */
+export const baseViewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#ffffff",
+};
 
 /**
  * Generates page-specific metadata with SEO optimization

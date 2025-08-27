@@ -10,15 +10,64 @@ export function Navigation() {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
+    console.log(
+      "🚀 FOUND THE ISSUE! Body has overflowY:auto, so BODY scrolls, not window!"
+    );
+
     const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      
-      // Show nav only when at the very top of the page
-      setIsVisible(currentScrollY <= 0);
+      // Check both window and body scroll since body has overflowY: auto
+      const windowScrollY =
+        window.scrollY ||
+        window.pageYOffset ||
+        document.documentElement.scrollTop;
+      const bodyScrollTop = document.body?.scrollTop || 0;
+
+      console.log(
+        "📜 SCROLL EVENT - Window Y:",
+        windowScrollY,
+        "Body Y:",
+        bodyScrollTop
+      );
+
+      // Use whichever one is actually scrolling
+      const scrollY = Math.max(windowScrollY, bodyScrollTop);
+      const shouldBeVisible = scrollY <= 5;
+
+      console.log(
+        "🎯 Final scroll Y:",
+        scrollY,
+        "should be visible:",
+        shouldBeVisible
+      );
+      setIsVisible(shouldBeVisible);
     };
 
+    // Initial check on both
+    const initialWindowScrollY =
+      window.scrollY ||
+      window.pageYOffset ||
+      document.documentElement.scrollTop;
+    const initialBodyScrollY = document.body?.scrollTop || 0;
+    console.log(
+      "🎯 Initial - Window Y:",
+      initialWindowScrollY,
+      "Body Y:",
+      initialBodyScrollY
+    );
+
+    const initialScrollY = Math.max(initialWindowScrollY, initialBodyScrollY);
+    setIsVisible(initialScrollY <= 5);
+
+    // Add listeners to BOTH window AND body
+    console.log("➕ Adding scroll listeners to BOTH window AND body");
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    document.body?.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      console.log("🧹 Cleaning up both scroll listeners");
+      window.removeEventListener("scroll", handleScroll);
+      document.body?.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
   return (
