@@ -30,6 +30,7 @@ export default function ProjectsPage() {
                   width={112}
                   height={112}
                   className="w-full h-full object-contain"
+                  priority
                 />
               </div>
             </div>

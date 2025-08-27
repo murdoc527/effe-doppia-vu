@@ -7,6 +7,7 @@ import { DefaultFadeInFooter } from "@/components/FadeInFooter";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SkipLinks } from "@/components/SkipLinks";
 import { AppWrapper } from "@/components/app-wrapper";
+import { Analytics } from "@/components/analytics";
 import { pageMetadata, generateStructuredData } from "@/lib/seo";
 
 export const metadata = pageMetadata.home;
@@ -21,6 +22,12 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/images/edv-logo-final.png" />
         <link rel="apple-touch-icon" href="/images/edv-logo-final.png" />
+        <link
+          rel="canonical"
+          href={process.env.NEXT_PUBLIC_APP_URL || "https://effedoppiavu.co.uk"}
+        />
+        <meta name="robots" content="index,follow" />
+        <meta name="googlebot" content="index,follow" />
         <style>{`
 html {
   font-family: ${GeistSans.style.fontFamily};
@@ -55,6 +62,9 @@ html {
             }}
           />
         ))}
+
+        {/* Google Analytics */}
+        <Analytics />
       </body>
     </html>
   );

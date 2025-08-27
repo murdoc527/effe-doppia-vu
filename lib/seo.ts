@@ -6,7 +6,7 @@
 import type { Metadata } from "next";
 // Use direct environment variables to avoid SSR issues
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Effe Doppia Vu";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://effedoppiavu.co.uk";
 
 interface SEOConfig {
   title?: string;
@@ -27,8 +27,7 @@ const baseMetadata = {
     template: `${APP_NAME} | %s`,
     default: APP_NAME,
   },
-  description:
-    "Tools and calculators.",
+  description: "Tools and calculators.",
   keywords: [
     "maritime navigation",
     "navigation calculator",
@@ -49,14 +48,16 @@ const baseMetadata = {
     address: false,
     telephone: false,
   },
+  viewport: "width=device-width, initial-scale=1",
+  themeColor: "#ffffff",
+  category: "Navigation Tools",
   openGraph: {
     type: "website",
     locale: "en_US",
     url: APP_URL,
     siteName: APP_NAME,
     title: APP_NAME,
-    description:
-      "Tools and calculators.",
+    description: "Tools and calculators.",
     images: [
       {
         url: "/images/og-effe-doppia-vu.jpg",
@@ -69,8 +70,7 @@ const baseMetadata = {
   twitter: {
     card: "summary_large_image",
     title: APP_NAME,
-    description:
-      "Tools and calculators.",
+    description: "Tools and calculators.",
     images: ["/images/og-effe-doppia-vu.jpg"],
     creator: "@effedoppiavu", // Update with actual Twitter handle
   },
@@ -86,10 +86,8 @@ const baseMetadata = {
     },
   },
   verification: {
-    // Add when ready
-    // google: "your-google-verification-code",
-    // yandex: "your-yandex-verification-code",
-    // bing: "your-bing-verification-code",
+    // DNS verification handled at domain level (Vercel DNS)
+    // No HTML meta tag verification needed
   },
 } satisfies Metadata;
 
@@ -201,8 +199,7 @@ export function generateMetadata(config: SEOConfig = {}): Metadata {
 export const pageMetadata = {
   home: generateMetadata({
     // No title specified = uses the default "Effe Doppia Vu"
-    description:
-      "Effe Doppia Vu - Tools and calculators.",
+    description: "Effe Doppia Vu - Tools and calculators.",
     keywords: ["navigation", "tools", "calculators"],
     url: "/",
   }),
