@@ -56,7 +56,13 @@ function ddToDDM(dd: number, isLatitude: boolean): string {
   const degrees = Math.floor(abs);
   const minutes = (abs - degrees) * 60;
   const direction = isLatitude ? (dd >= 0 ? "N" : "S") : dd >= 0 ? "E" : "W";
-  return `${degrees}° ${minutes.toFixed(3)}' ${direction}`;
+
+  // Format degrees with leading zeros: latitude 00, longitude 000
+  const degreesFormatted = isLatitude
+    ? degrees.toString().padStart(2, "0")
+    : degrees.toString().padStart(3, "0");
+
+  return `${degreesFormatted}° ${minutes.toFixed(3)}' ${direction}`;
 }
 
 function ddToDMS(dd: number, isLatitude: boolean): string {
@@ -66,7 +72,15 @@ function ddToDMS(dd: number, isLatitude: boolean): string {
   const minutes = Math.floor(minutesFloat);
   const seconds = (minutesFloat - minutes) * 60;
   const direction = isLatitude ? (dd >= 0 ? "N" : "S") : dd >= 0 ? "E" : "W";
-  return `${degrees}° ${minutes}' ${seconds.toFixed(1)}" ${direction}`;
+
+  // Format degrees with leading zeros: latitude 00, longitude 000
+  const degreesFormatted = isLatitude
+    ? degrees.toString().padStart(2, "0")
+    : degrees.toString().padStart(3, "0");
+
+  return `${degreesFormatted}° ${minutes
+    .toString()
+    .padStart(2, "0")}' ${seconds.toFixed(1)}" ${direction}`;
 }
 
 function parseDDM(ddm: string): number {
@@ -679,8 +693,6 @@ export function LatLongConverter() {
           </CardContent>
         </Card>
       )}
-
-
     </div>
   );
 }
