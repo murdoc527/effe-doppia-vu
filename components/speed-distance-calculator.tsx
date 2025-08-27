@@ -130,7 +130,7 @@ export function SpeedDistanceCalculator() {
               <Input
                 type="number"
                 placeholder="HH"
-                value={state.timeHours || ""}
+                value={state.timeHours === 0 ? "" : state.timeHours.toString()}
                 onChange={(e) => handleTimeChange("hours", e.target.value)}
                 onWheel={(e) => e.currentTarget.blur()}
                 className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-center text-sm sm:text-base"
@@ -144,7 +144,7 @@ export function SpeedDistanceCalculator() {
               <Input
                 type="number"
                 placeholder="MM"
-                value={state.timeMinutes || ""}
+                value={state.timeMinutes === 0 ? "" : state.timeMinutes.toString()}
                 onChange={(e) => handleTimeChange("minutes", e.target.value)}
                 onWheel={(e) => e.currentTarget.blur()}
                 className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-center text-sm sm:text-base"
@@ -159,7 +159,7 @@ export function SpeedDistanceCalculator() {
               <Input
                 type="number"
                 placeholder="SS"
-                value={state.timeSeconds || ""}
+                value={state.timeSeconds === 0 ? "" : state.timeSeconds.toString()}
                 onChange={(e) => handleTimeChange("seconds", e.target.value)}
                 onWheel={(e) => e.currentTarget.blur()}
                 className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-center text-sm sm:text-base"

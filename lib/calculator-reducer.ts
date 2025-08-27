@@ -307,10 +307,10 @@ export function reducer(state: CalcState, action: Action): CalcState {
     }
 
     case "setTime": {
-      const h = action.hours ?? state.timeHours;
-      const m = action.minutes ?? state.timeMinutes;
-      const s = action.seconds ?? state.timeSeconds;
-      const norm = normalizeHMS(h ?? 0, m ?? 0, s ?? 0);
+      const h = action.hours !== undefined ? (action.hours ?? 0) : state.timeHours;
+      const m = action.minutes !== undefined ? (action.minutes ?? 0) : state.timeMinutes;
+      const s = action.seconds !== undefined ? (action.seconds ?? 0) : state.timeSeconds;
+      const norm = normalizeHMS(h, m, s);
 
       let timeField: LastEdited = "timeHours";
       if (action.seconds !== undefined) timeField = "timeSeconds";
