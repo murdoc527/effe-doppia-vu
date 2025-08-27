@@ -9,6 +9,8 @@ import {
   parseMGRS,
   parseBNG,
   parseDD,
+  parseDDM,
+  parseDMS,
   type CoordinateFormat,
   type FormattedCoordinates,
 } from "@/lib/coords";
@@ -244,7 +246,7 @@ export function GoogleMapsCrosshair({
   const parseCoordinateInput = (
     input: string
   ): { lat: number; lng: number } | null => {
-    // Try MGRS format first
+    // Try MGRS format first (most specific)
     const mgrsResult = parseMGRS(input);
     if (mgrsResult) return mgrsResult;
 
@@ -252,7 +254,15 @@ export function GoogleMapsCrosshair({
     const bngResult = parseBNG(input);
     if (bngResult) return bngResult;
 
-    // Try DD format
+    // Try DMS format (most detailed traditional format)
+    const dmsResult = parseDMS(input);
+    if (dmsResult) return dmsResult;
+
+    // Try DDM format
+    const ddmResult = parseDDM(input);
+    if (ddmResult) return ddmResult;
+
+    // Try DD format (simplest, try last to avoid false positives)
     const ddResult = parseDD(input);
     if (ddResult) return ddResult;
 
@@ -371,7 +381,7 @@ export function GoogleMapsCrosshair({
                 <Input
                   ref={searchInputRef}
                   type="text"
-                  placeholder="Search places, or enter coordinates (MGRS, BNG, DD)..."
+                  placeholder="Search places, or enter coordinates (DD, DDM, DMS, BNG, MGRS)..."
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
                   className="pl-10 bg-white/20 text-white border-white/30 placeholder:text-white/60 hover:bg-white/30 focus:bg-white/30 h-10"
@@ -392,13 +402,13 @@ export function GoogleMapsCrosshair({
 
             {/* Map Type Controls - Mobile Optimized */}
             <div className="flex gap-2 items-center">
-              <div className="flex items-center gap-2 flex-1">
+              <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-white flex-shrink-0" />
                 <Select
                   value={mapType}
                   onValueChange={(value) => changeMapType(value as any)}
                 >
-                  <SelectTrigger className="w-full bg-white/20 text-white border-white/30 hover:bg-white/30 h-10">
+                  <SelectTrigger className="w-auto min-w-[100px] bg-white/20 text-white border-white/30 hover:bg-white/30 h-10">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent className="bg-black/90 border-white/20">

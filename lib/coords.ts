@@ -258,3 +258,76 @@ export function parseDD(ddString: string): Coordinates | null {
     return null;
   }
 }
+
+// Parse DDM (Degrees Decimal Minutes) string to lat/lng
+export function parseDDM(ddmString: string): Coordinates | null {
+  try {
+    const trimmed = ddmString.trim().toUpperCase();
+
+    // Match DDM format: "51° 30.444' N, 0° 7.667' W" or "51 30.444 N, 0 7.667 W"
+    const ddmPattern =
+      /^(\d{1,3})°?\s*(\d{1,2}\.?\d*)'?\s*([NS])\s*,?\s*(\d{1,3})°?\s*(\d{1,2}\.?\d*)'?\s*([EW])$/;
+    const match = trimmed.match(ddmPattern);
+
+    if (!match) {
+      return null;
+    }
+
+    const [, latDeg, latMin, latDir, lngDeg, lngMin, lngDir] = match;
+
+    // Convert DDM to DD
+    let lat = parseInt(latDeg) + parseFloat(latMin) / 60;
+    let lng = parseInt(lngDeg) + parseFloat(lngMin) / 60;
+
+    // Apply direction
+    if (latDir === "S") lat = -lat;
+    if (lngDir === "W") lng = -lng;
+
+    if (validateDD(lat, lng)) {
+      return { lat, lng };
+    }
+
+    return null;
+  } catch (error) {
+    console.warn("DDM parsing failed:", error);
+    return null;
+  }
+}
+
+// Parse DMS (Degrees Minutes Seconds) string to lat/lng
+export function parseDMS(dmsString: string): Coordinates | null {
+  try {
+    const trimmed = dmsString.trim().toUpperCase();
+
+    // Match DMS format: "51° 30' 26.6" N, 0° 7' 40.0" W" or "51 30 26.6 N, 0 7 40.0 W"
+    const dmsPattern =
+      /^(\d{1,3})°?\s*(\d{1,2})'?\s*(\d{1,2}\.?\d*)"?\s*([NS])\s*,?\s*(\d{1,3})°?\s*(\d{1,2})'?\s*(\d{1,2}\.?\d*)"?\s*([EW])$/;
+    const match = trimmed.match(dmsPattern);
+
+    if (!match) {
+      return null;
+    }
+
+    const [, latDeg, latMin, latSec, latDir, lngDeg, lngMin, lngSec, lngDir] =
+      match;
+
+    // Convert DMS to DD
+    let lat =
+      parseInt(latDeg) + parseInt(latMin) / 60 + parseFloat(latSec) / 3600;
+    let lng =
+      parseInt(lngDeg) + parseInt(lngMin) / 60 + parseFloat(lngSec) / 3600;
+
+    // Apply direction
+    if (latDir === "S") lat = -lat;
+    if (lngDir === "W") lng = -lng;
+
+    if (validateDD(lat, lng)) {
+      return { lat, lng };
+    }
+
+    return null;
+  } catch (error) {
+    console.warn("DMS parsing failed:", error);
+    return null;
+  }
+}
