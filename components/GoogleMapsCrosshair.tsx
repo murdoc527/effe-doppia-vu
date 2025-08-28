@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import {
   Collapsible,
   CollapsibleContent,
@@ -45,6 +46,9 @@ import {
   ChevronRight,
   Maximize,
   Minimize,
+  Plus,
+  Minus,
+  Ruler,
 } from "lucide-react";
 
 interface GoogleMapsCrosshairProps {
@@ -82,12 +86,167 @@ export function GoogleMapsCrosshair({
     lng: initialCenter[0],
   });
   const [currentZoom, setCurrentZoom] = useState(initialZoom);
+  const [showZoomSlider, setShowZoomSlider] = useState(false);
+  const [mapScale, setMapScale] = useState({
+    distance: "1 km",
+    imperialDistance: "0.6 mi",
+    pixels: 100,
+    meters: 1000,
+  });
+  const [isMeasuring, setIsMeasuring] = useState(false);
+  const [measurePoints, setMeasurePoints] = useState<google.maps.LatLng[]>([]);
+  const [measureResult, setMeasureResult] = useState<{
+    distance: string;
+    bearing: string;
+    distanceMeters: number;
+  } | null>(null);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const map = useRef<google.maps.Map | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const autocomplete = useRef<google.maps.places.Autocomplete | null>(null);
   const [mapKey, setMapKey] = useState(0);
+  const measureMarkersRef = useRef<google.maps.Marker[]>([]);
+  const measureLineRef = useRef<google.maps.Polyline | null>(null);
+
+  // Calculate distance and bearing between two points
+  const calculateDistanceAndBearing = (
+    point1: google.maps.LatLng,
+    point2: google.maps.LatLng
+  ) => {
+    // Calculate distance using Haversine formula
+    const R = 6371000; // Earth's radius in meters
+    const lat1Rad = (point1.lat() * Math.PI) / 180;
+    const lat2Rad = (point2.lat() * Math.PI) / 180;
+    const deltaLatRad = ((point2.lat() - point1.lat()) * Math.PI) / 180;
+    const deltaLngRad = ((point2.lng() - point1.lng()) * Math.PI) / 180;
+
+    const a =
+      Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) +
+      Math.cos(lat1Rad) *
+        Math.cos(lat2Rad) *
+        Math.sin(deltaLngRad / 2) *
+        Math.sin(deltaLngRad / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distanceMeters = R * c;
+
+    // Calculate bearing
+    const y = Math.sin(deltaLngRad) * Math.cos(lat2Rad);
+    const x =
+      Math.cos(lat1Rad) * Math.sin(lat2Rad) -
+      Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(deltaLngRad);
+    const bearingRad = Math.atan2(y, x);
+    const bearingDeg = ((bearingRad * 180) / Math.PI + 360) % 360;
+
+    // Format distance
+    let distanceStr: string;
+    if (distanceMeters < 1000) {
+      distanceStr = `${Math.round(distanceMeters)} m`;
+    } else {
+      distanceStr = `${(distanceMeters / 1000).toFixed(2)} km`;
+    }
+
+    // Format bearing
+    const bearingStr = `${Math.round(bearingDeg)}°`;
+
+    return { distance: distanceStr, bearing: bearingStr, distanceMeters };
+  };
+
+  // Toggle measuring mode
+  const toggleMeasuring = () => {
+    if (isMeasuring) {
+      // Stop measuring and clear markers/lines
+      setIsMeasuring(false);
+      setMeasurePoints([]);
+      setMeasureResult(null);
+
+      // Clear markers
+      measureMarkersRef.current.forEach((marker) => marker.setMap(null));
+      measureMarkersRef.current = [];
+
+      // Clear line
+      if (measureLineRef.current) {
+        measureLineRef.current.setMap(null);
+        measureLineRef.current = null;
+      }
+    } else {
+      // Start measuring
+      setIsMeasuring(true);
+      setMeasurePoints([]);
+      setMeasureResult(null);
+    }
+  };
+
+  // Calculate dynamic scale bar with appropriate intervals
+  const calculateScale = () => {
+    if (map.current) {
+      const zoom = map.current.getZoom();
+      const center = map.current.getCenter();
+      if (zoom !== undefined && center) {
+        const lat = center.lat();
+
+        // Earth's circumference at equator in meters
+        const earthCircumference = 40075016.686;
+
+        // Calculate meters per pixel at this zoom level and latitude
+        const metersPerPixel =
+          (earthCircumference * Math.cos((lat * Math.PI) / 180)) /
+          Math.pow(2, zoom + 8);
+
+        // Target scale bar length in pixels (flexible)
+        const targetPixels = 200;
+        const targetMeters = metersPerPixel * targetPixels;
+
+        // Choose nice round numbers for scale intervals
+        const niceDistances = [
+          1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000,
+          10000, 20000, 25000, 50000, 100000, 200000, 250000, 500000, 1000000,
+        ];
+
+        // Find the best distance that's close to our target
+        let bestDistance = niceDistances[0];
+        for (const distance of niceDistances) {
+          if (distance <= targetMeters * 1.2) {
+            bestDistance = distance;
+          } else {
+            break;
+          }
+        }
+
+        // Calculate actual pixel width for this distance
+        const actualPixels = bestDistance / metersPerPixel;
+
+        // Format metric distance
+        let metricLabel: string;
+        if (bestDistance < 1000) {
+          metricLabel = `${bestDistance} m`;
+        } else {
+          metricLabel = `${bestDistance / 1000} km`;
+        }
+
+        // Convert to miles for imperial scale
+        const miles = bestDistance * 0.000621371;
+        let imperialLabel: string;
+        if (miles < 1) {
+          const feet = bestDistance * 3.28084;
+          if (feet < 1000) {
+            imperialLabel = `${Math.round(feet)} ft`;
+          } else {
+            imperialLabel = `${(feet / 5280).toFixed(1)} mi`;
+          }
+        } else {
+          imperialLabel = `${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
+        }
+
+        setMapScale({
+          distance: metricLabel,
+          imperialDistance: imperialLabel,
+          pixels: Math.round(actualPixels),
+          meters: bestDistance,
+        });
+      }
+    }
+  };
 
   // Convert current center to all coordinate formats
   const updateCoordinates = () => {
@@ -103,6 +262,9 @@ export function GoogleMapsCrosshair({
         if (zoom !== undefined) {
           setCurrentZoom(zoom);
         }
+
+        // Update scale
+        calculateScale();
 
         try {
           const converted = convertCoordinates(lat, lng);
@@ -153,19 +315,72 @@ export function GoogleMapsCrosshair({
             center: currentCenter,
             zoom: currentZoom,
             mapTypeId: mapType,
-            disableDefaultUI: false,
-            zoomControl: true,
-            mapTypeControl: false, // Disable built-in map type control
-            scaleControl: true,
+            disableDefaultUI: true, // Disable all default UI
+            zoomControl: false,
+            mapTypeControl: false,
+            scaleControl: false,
             streetViewControl: false,
             rotateControl: false,
             fullscreenControl: false,
             gestureHandling: "greedy",
+            keyboardShortcuts: false,
           });
 
           // Update coordinates when map moves
           map.current.addListener("center_changed", updateCoordinates);
-          map.current.addListener("zoom_changed", updateCoordinates);
+          map.current.addListener("zoom_changed", () => {
+            updateCoordinates();
+            setShowZoomSlider(true);
+          });
+
+          // Add click listener for measuring
+          map.current.addListener(
+            "click",
+            (event: google.maps.MapMouseEvent) => {
+              if (isMeasuring && event.latLng) {
+                const newPoints = [...measurePoints, event.latLng];
+                setMeasurePoints(newPoints);
+
+                // Add marker
+                const marker = new google.maps.Marker({
+                  position: event.latLng,
+                  map: map.current,
+                  title: `Point ${newPoints.length}`,
+                  icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 6,
+                    fillColor: "#ff0000",
+                    fillOpacity: 1,
+                    strokeColor: "#ffffff",
+                    strokeWeight: 2,
+                  },
+                });
+                measureMarkersRef.current.push(marker);
+
+                // If we have two points, calculate distance and bearing
+                if (newPoints.length === 2) {
+                  const result = calculateDistanceAndBearing(
+                    newPoints[0],
+                    newPoints[1]
+                  );
+                  setMeasureResult(result);
+
+                  // Draw line between points
+                  measureLineRef.current = new google.maps.Polyline({
+                    path: newPoints,
+                    geodesic: true,
+                    strokeColor: "#ff0000",
+                    strokeOpacity: 1.0,
+                    strokeWeight: 3,
+                    map: map.current,
+                  });
+
+                  // Auto-stop measuring after two points
+                  setIsMeasuring(false);
+                }
+              }
+            }
+          );
 
           // Initialize Places Autocomplete (New API)
           if (searchInputRef.current) {
@@ -188,6 +403,60 @@ export function GoogleMapsCrosshair({
                   setIsSearching(false);
                 }
               });
+
+              // Style the autocomplete dropdown to match our modal design
+              setTimeout(() => {
+                const style = document.createElement("style");
+                style.textContent = `
+                  .pac-container {
+                    background: rgba(0, 0, 0, 0.7) !important;
+                    backdrop-filter: blur(16px) !important;
+                    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+                    border-radius: 12px !important;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+                    margin-top: 4px !important;
+                    overflow: hidden !important;
+                  }
+                  .pac-item {
+                    background: transparent !important;
+                    color: rgba(255, 255, 255, 0.9) !important;
+                    border: none !important;
+                    padding: 12px 16px !important;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+                    transition: all 0.2s ease !important;
+                  }
+                  .pac-item:hover, .pac-item-selected {
+                    background: rgba(255, 255, 255, 0.2) !important;
+                    color: white !important;
+                  }
+                  .pac-item:last-child {
+                    border-bottom: none !important;
+                  }
+                  .pac-item .pac-icon {
+                    background-image: none !important;
+                    width: 16px !important;
+                    height: 16px !important;
+                    margin-right: 12px !important;
+                  }
+                  .pac-item .pac-icon::before {
+                    content: "📍" !important;
+                    font-size: 14px !important;
+                    line-height: 16px !important;
+                  }
+                  .pac-item .pac-item-query {
+                    color: white !important;
+                    font-weight: 500 !important;
+                  }
+                  .pac-item .pac-matched {
+                    color: rgba(255, 255, 255, 0.7) !important;
+                    font-weight: 400 !important;
+                  }
+                  .pac-logo::after {
+                    display: none !important;
+                  }
+                `;
+                document.head.appendChild(style);
+              }, 100);
             } catch (error) {
               console.warn("Places Autocomplete not available:", error);
             }
@@ -214,6 +483,26 @@ export function GoogleMapsCrosshair({
       map.current.setMapTypeId(newMapType);
     }
   };
+
+  const handleZoomChange = (value: number[]) => {
+    const newZoom = value[0];
+    setCurrentZoom(newZoom);
+    setShowZoomSlider(true);
+    if (map.current) {
+      map.current.setZoom(newZoom);
+    }
+  };
+
+  // Auto-hide zoom slider after 1 second of inactivity
+  useEffect(() => {
+    if (showZoomSlider) {
+      const timer = setTimeout(() => {
+        setShowZoomSlider(false);
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [showZoomSlider, currentZoom]);
 
   const copyToClipboard = async (text: string, fieldName: string) => {
     try {
@@ -492,7 +781,7 @@ export function GoogleMapsCrosshair({
     <div className="space-y-2 sm:space-y-4">
       {/* Location Search */}
       <form onSubmit={handleSearchSubmit} className="flex gap-2">
-        <div className="relative flex-1">
+        <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/60" />
           <Input
             ref={searchInputRef}
@@ -545,6 +834,16 @@ export function GoogleMapsCrosshair({
           className="bg-blue-600 hover:bg-blue-700 text-white h-10 w-10 p-0 flex-shrink-0"
         >
           <MapPin className="w-4 h-4" />
+        </Button>
+        <Button
+          onClick={toggleMeasuring}
+          className={`${
+            isMeasuring
+              ? "bg-red-600 hover:bg-red-700"
+              : "bg-orange-600 hover:bg-orange-700"
+          } text-white h-10 w-10 p-0 flex-shrink-0`}
+        >
+          <Ruler className="w-4 h-4" />
         </Button>
         <Button
           onClick={toggleFullscreen}
@@ -696,6 +995,198 @@ export function GoogleMapsCrosshair({
                     }`}
                   />
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Measurement Result Display */}
+        {measureResult && (
+          <div className="absolute top-20 left-2 pointer-events-auto">
+            <div className="bg-black/90 backdrop-blur-sm rounded-lg border border-white/30 p-3">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Ruler className="w-4 h-4 text-orange-400" />
+                  <span className="text-white text-sm font-medium">
+                    Measurement
+                  </span>
+                  <Button
+                    onClick={() => {
+                      setMeasureResult(null);
+                      // Clear markers and line
+                      measureMarkersRef.current.forEach((marker) =>
+                        marker.setMap(null)
+                      );
+                      measureMarkersRef.current = [];
+                      if (measureLineRef.current) {
+                        measureLineRef.current.setMap(null);
+                        measureLineRef.current = null;
+                      }
+                      setMeasurePoints([]);
+                    }}
+                    className="bg-red-600 hover:bg-red-700 text-white h-6 w-6 p-0 ml-auto"
+                  >
+                    ×
+                  </Button>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <div className="text-white/90 text-sm">
+                    <span className="text-white/70">Distance: </span>
+                    <span className="font-medium">
+                      {measureResult.distance}
+                    </span>
+                  </div>
+                  <div className="text-white/90 text-sm">
+                    <span className="text-white/70">Bearing: </span>
+                    <span className="font-medium">{measureResult.bearing}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Measuring Instructions */}
+        {isMeasuring && (
+          <div className="absolute top-2 left-1/2 transform -translate-x-1/2 pointer-events-none">
+            <div className="bg-orange-600/90 backdrop-blur-sm rounded-lg border border-orange-400/30 px-3 py-2">
+              <div className="text-white text-sm font-medium text-center">
+                {measurePoints.length === 0
+                  ? "Click first point on map"
+                  : "Click second point to measure"}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Custom Zoom Slider - Bottom Positioned with Fade */}
+        {!isLoading && (
+          <div
+            className={`absolute bottom-2 left-1/2 transform -translate-x-1/2 pointer-events-auto transition-opacity duration-500 ${
+              showZoomSlider ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            <div className="bg-black/90 backdrop-blur-sm rounded-lg border border-white/30 p-3">
+              <div className="flex items-center gap-3">
+                <span className="text-white/70 text-xs font-medium">Zoom</span>
+                <div className="w-24">
+                  <Slider
+                    value={[currentZoom]}
+                    onValueChange={handleZoomChange}
+                    min={1}
+                    max={20}
+                    step={0.5}
+                    className="w-full"
+                  />
+                </div>
+                <span className="text-white/60 text-xs min-w-[32px] text-center">
+                  {Math.round((currentZoom / 20) * 100)}%
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic Scale Bar */}
+        {!isLoading && (
+          <div className="absolute bottom-8 right-4 pointer-events-none">
+            <div className="flex flex-col gap-2">
+              {/* Metric Scale */}
+              <div className="flex flex-col items-start gap-1">
+                <div className="flex items-end">
+                  <div className="relative">
+                    {/* Main scale bar */}
+                    <div
+                      className="bg-white h-0.5"
+                      style={{ width: `${mapScale.pixels}px` }}
+                    ></div>
+                    {/* Start tick */}
+                    <div className="absolute left-0 top-0 w-0.5 h-2 bg-white transform -translate-y-1"></div>
+                    {/* Quarter tick */}
+                    <div
+                      className="absolute top-0 w-0.5 h-1 bg-white transform -translate-y-0.5"
+                      style={{ left: `${mapScale.pixels * 0.25}px` }}
+                    ></div>
+                    {/* Half tick */}
+                    <div
+                      className="absolute top-0 w-0.5 h-1.5 bg-white transform -translate-y-1"
+                      style={{ left: `${mapScale.pixels * 0.5}px` }}
+                    ></div>
+                    {/* Three quarter tick */}
+                    <div
+                      className="absolute top-0 w-0.5 h-1 bg-white transform -translate-y-0.5"
+                      style={{ left: `${mapScale.pixels * 0.75}px` }}
+                    ></div>
+                    {/* End tick */}
+                    <div
+                      className="absolute top-0 w-0.5 h-2 bg-white transform -translate-y-1"
+                      style={{ left: `${mapScale.pixels}px` }}
+                    ></div>
+                  </div>
+                </div>
+                <div className="flex justify-between w-full text-white/70 text-xs font-medium">
+                  <span>0</span>
+                  <span>{mapScale.distance}</span>
+                </div>
+              </div>
+
+              {/* Imperial Scale */}
+              <div className="flex flex-col items-start gap-1">
+                <div className="flex items-end">
+                  <div className="relative">
+                    {/* Main scale bar */}
+                    <div
+                      className="bg-white h-0.5"
+                      style={{ width: `${mapScale.pixels}px` }}
+                    ></div>
+                    {/* Alternating black and white segments for imperial */}
+                    <div className="absolute top-0 left-0 flex h-0.5">
+                      <div
+                        className="bg-black h-full"
+                        style={{ width: `${mapScale.pixels * 0.125}px` }}
+                      ></div>
+                      <div
+                        className="bg-white h-full"
+                        style={{ width: `${mapScale.pixels * 0.125}px` }}
+                      ></div>
+                      <div
+                        className="bg-black h-full"
+                        style={{ width: `${mapScale.pixels * 0.125}px` }}
+                      ></div>
+                      <div
+                        className="bg-white h-full"
+                        style={{ width: `${mapScale.pixels * 0.125}px` }}
+                      ></div>
+                      <div
+                        className="bg-black h-full"
+                        style={{ width: `${mapScale.pixels * 0.125}px` }}
+                      ></div>
+                      <div
+                        className="bg-white h-full"
+                        style={{ width: `${mapScale.pixels * 0.125}px` }}
+                      ></div>
+                      <div
+                        className="bg-black h-full"
+                        style={{ width: `${mapScale.pixels * 0.125}px` }}
+                      ></div>
+                      <div
+                        className="bg-white h-full"
+                        style={{ width: `${mapScale.pixels * 0.125}px` }}
+                      ></div>
+                    </div>
+                    {/* Start tick */}
+                    <div className="absolute left-0 bottom-0 w-0.5 h-2 bg-white transform translate-y-1"></div>
+                    {/* End tick */}
+                    <div
+                      className="absolute bottom-0 w-0.5 h-2 bg-white transform translate-y-1"
+                      style={{ left: `${mapScale.pixels}px` }}
+                    ></div>
+                  </div>
+                </div>
+                <div className="flex justify-between w-full text-white/70 text-xs font-medium">
+                  <span>0</span>
+                  <span>{mapScale.imperialDistance}</span>
+                </div>
               </div>
             </div>
           </div>
