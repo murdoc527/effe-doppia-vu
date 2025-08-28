@@ -949,9 +949,57 @@ const parseCoordinateInput = (input: string) => {
 - **Performance**: Direct coordinate navigation without unnecessary API calls
 - **Professional UI**: Compact, space-efficient interface design
 
-### Next Steps:
+## Task: Fix Map Measurement Tool Marker Click Reversal
 
-- Monitor user adoption of DDM/DMS coordinate search
-- Gather feedback on comprehensive coordinate format support
-- Consider adding coordinate format tooltips and examples
-- Track usage patterns across different coordinate input methods
+### Issue:
+
+User wants clicking on markers after measurement to reverse the bearing direction:
+
+- Click red marker → becomes new green starting point, crosshair moves there, get back bearing
+- Click green marker → crosshair moves to green marker position
+
+### Problem Identified:
+
+Current implementation has issues with marker click detection and position-based logic. The `reverseMeasurement` function isn't working correctly.
+
+### Implementation Status:
+
+[X] Debug marker click listeners
+[X] Fix position comparison logic - replaced with boolean flag approach
+[X] Ensure crosshair moves to clicked marker
+[X] Verify bearing calculation reversal
+[X] Fix circular dependency in useEffect
+[X] Add drag listeners to reverseMeasurement markers
+[X] Fix state vs marker position mismatch
+[ ] Test both green and red marker clicks
+
+### Critical Issues Fixed:
+
+**1. Circular Dependency:**
+
+- **Problem**: `useEffect` had `measurePoints.length` as dependency, but drag listeners called `setMeasurePoints()`, causing infinite re-renders
+- **Fix**: Removed `measurePoints.length` from useEffect dependencies
+
+**2. Missing Drag Listeners:**
+
+- **Problem**: `reverseMeasurement` created new markers but didn't add drag listeners
+- **Fix**: Added drag listeners directly in `reverseMeasurement` function
+
+**3. State vs Marker Position Mismatch:**
+
+- **Problem**: Drag listeners used `measurePoints[0]` and `measurePoints[1]` from state instead of actual marker positions
+- **Fix**: Use `greenMarker.getPosition()` and `redMarker.getPosition()` for real-time accuracy
+
+### Solution Implemented:
+
+**Root Cause:** Position comparison using `getPosition()` was unreliable due to object references.
+
+**Fix:** Replaced position-based detection with simple boolean flag:
+
+- `reverseMeasurement(true)` = green marker clicked
+- `reverseMeasurement(false)` = red marker clicked
+
+**Logic:**
+
+- Green marker click: Crosshair moves to green, keeps same bearing direction
+- Red marker click: Swaps points (red→green, green→red), crosshair moves to clicked red marker (now green), shows back bearing

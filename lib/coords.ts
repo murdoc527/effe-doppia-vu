@@ -181,7 +181,7 @@ export function isErrorResult(value: string): boolean {
 export function parseMGRS(mgrsString: string): Coordinates | null {
   try {
     const cleaned = mgrsString.replace(/\s+/g, "").toUpperCase();
-    const [lat, lng] = mgrs.toPoint(cleaned);
+    const [lng, lat] = mgrs.toPoint(cleaned);
     return { lat, lng };
   } catch (error) {
     console.warn("MGRS parsing failed:", error);

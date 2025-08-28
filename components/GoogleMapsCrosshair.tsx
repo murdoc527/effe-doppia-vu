@@ -49,6 +49,7 @@ import {
   Plus,
   Minus,
   Ruler,
+  Check,
 } from "lucide-react";
 
 interface GoogleMapsCrosshairProps {
@@ -94,12 +95,16 @@ export function GoogleMapsCrosshair({
     meters: 1000,
   });
   const [isMeasuring, setIsMeasuring] = useState(false);
+  const [measureStep, setMeasureStep] = useState<
+    "idle" | "first-point" | "second-point"
+  >("idle");
   const [measurePoints, setMeasurePoints] = useState<google.maps.LatLng[]>([]);
   const [measureResult, setMeasureResult] = useState<{
     distance: string;
     bearing: string;
     distanceMeters: number;
   } | null>(null);
+  const [measureSwapCount, setMeasureSwapCount] = useState(0);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const map = useRef<google.maps.Map | null>(null);
@@ -152,30 +157,337 @@ export function GoogleMapsCrosshair({
     return { distance: distanceStr, bearing: bearingStr, distanceMeters };
   };
 
-  // Toggle measuring mode
-  const toggleMeasuring = () => {
-    if (isMeasuring) {
-      // Stop measuring and clear markers/lines
-      setIsMeasuring(false);
-      setMeasurePoints([]);
-      setMeasureResult(null);
+  // Start measuring mode - place first green marker at crosshair
+  const startMeasuring = () => {
+    // If there are already measurement points, clear everything first
+    if (measurePoints.length > 0 || measureResult) {
+      cancelMeasuring();
+      return;
+    }
 
-      // Clear markers
-      measureMarkersRef.current.forEach((marker) => marker.setMap(null));
-      measureMarkersRef.current = [];
+    if (map.current) {
+      const center = map.current.getCenter();
+      if (center) {
+        setIsMeasuring(true);
+        setMeasureStep("first-point");
+        setMeasurePoints([center]);
+        setMeasureResult(null);
 
-      // Clear line
-      if (measureLineRef.current) {
-        measureLineRef.current.setMap(null);
-        measureLineRef.current = null;
+        // Add green marker at crosshair center
+        const marker = new google.maps.Marker({
+          position: center,
+          map: map.current,
+          title: "First Point",
+          draggable: true, // Enable dragging
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: "#00ff00", // Green color
+            fillOpacity: 1,
+            strokeColor: "#ffffff",
+            strokeWeight: 2,
+          },
+        });
+        measureMarkersRef.current = [marker];
       }
-    } else {
-      // Start measuring
-      setIsMeasuring(true);
-      setMeasurePoints([]);
-      setMeasureResult(null);
     }
   };
+
+  // Confirm second point and complete measurement
+  const confirmSecondPoint = () => {
+    if (map.current && measurePoints.length === 1) {
+      const center = map.current.getCenter();
+      if (center) {
+        const newPoints = [...measurePoints, center];
+        setMeasurePoints(newPoints);
+
+        // Add red marker for second point
+        const redMarker = new google.maps.Marker({
+          position: center,
+          map: map.current,
+          title: "Second Point (Click to reverse)",
+          draggable: true, // Enable dragging
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: "#ff0000", // Red color
+            fillOpacity: 1,
+            strokeColor: "#ffffff",
+            strokeWeight: 2,
+          },
+        });
+
+        measureMarkersRef.current.push(redMarker);
+
+        // Calculate distance and bearing
+        const result = calculateDistanceAndBearing(newPoints[0], newPoints[1]);
+        setMeasureResult(result);
+
+        // Draw great circle line between points
+        measureLineRef.current = new google.maps.Polyline({
+          path: newPoints,
+          geodesic: true, // Great circle
+          strokeColor: "#ff0000",
+          strokeOpacity: 1.0,
+          strokeWeight: 3,
+          map: map.current,
+        });
+
+        // Complete measurement
+        setMeasureStep("idle");
+        setIsMeasuring(false);
+      }
+    }
+  };
+
+  // Reverse measurement - any red marker click should swap points
+  const reverseMeasurement = (clickedMarkerIsGreen: boolean) => {
+    console.log(
+      "reverseMeasurement called with clickedMarkerIsGreen:",
+      clickedMarkerIsGreen
+    );
+    console.log("Current measurePoints:", measurePoints);
+
+    if (
+      measurePoints.length === 2 &&
+      map.current &&
+      measureMarkersRef.current.length === 2
+    ) {
+      // Only red marker click should do anything
+      if (clickedMarkerIsGreen) {
+        // Clicked green marker - do nothing, just return
+        console.log("Green marker clicked - no action taken");
+        return;
+      }
+
+      // Get current marker positions (not from state, but from actual markers)
+      const currentGreenMarker = measureMarkersRef.current[0];
+      const currentRedMarker = measureMarkersRef.current[1];
+      const currentGreenPosition = currentGreenMarker.getPosition();
+      const currentRedPosition = currentRedMarker.getPosition();
+
+      if (!currentGreenPosition || !currentRedPosition) return;
+
+      // Clicked red marker - swap points to make red the new start
+      // Use current marker positions, not state positions
+      const newFirstPoint = currentRedPosition; // Red becomes green
+      const newSecondPoint = currentGreenPosition; // Green becomes red
+
+      const reversedPoints = [newFirstPoint, newSecondPoint];
+      setMeasurePoints(reversedPoints);
+      setMeasureSwapCount((prev) => prev + 1); // Increment swap count to trigger useEffect
+
+      // Move crosshair to the new first point (clicked red marker position)
+      map.current.setCenter(newFirstPoint);
+
+      // Recalculate with new direction
+      const result = calculateDistanceAndBearing(
+        reversedPoints[0],
+        reversedPoints[1]
+      );
+      setMeasureResult(result);
+
+      // Clear existing markers and line
+      measureMarkersRef.current.forEach((marker) => marker.setMap(null));
+      if (measureLineRef.current) {
+        measureLineRef.current.setMap(null);
+      }
+
+      // Create new markers
+      const greenMarker = new google.maps.Marker({
+        position: reversedPoints[0],
+        map: map.current,
+        title: "First Point (Click to move crosshair here)",
+        draggable: true, // Enable dragging
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 8,
+          fillColor: "#00ff00", // Green for start point
+          fillOpacity: 1,
+          strokeColor: "#ffffff",
+          strokeWeight: 2,
+        },
+      });
+
+      const redMarker = new google.maps.Marker({
+        position: reversedPoints[1],
+        map: map.current,
+        title: "Second Point (Click to swap to start)",
+        draggable: true, // Enable dragging
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 8,
+          fillColor: "#ff0000", // Red for end point
+          fillOpacity: 1,
+          strokeColor: "#ffffff",
+          strokeWeight: 2,
+        },
+      });
+
+      // Add click listeners with clear marker identification
+      greenMarker.addListener("click", () => {
+        console.log("Green marker clicked (in reverseMeasurement)!");
+        reverseMeasurement(true); // true = green marker clicked
+      });
+
+      redMarker.addListener("click", () => {
+        console.log("Red marker clicked (in reverseMeasurement)!");
+        reverseMeasurement(false); // false = red marker clicked
+      });
+
+      // Add drag listeners to the new markers
+      greenMarker.addListener("dragend", () => {
+        const newPosition = greenMarker.getPosition();
+        const redPosition = redMarker.getPosition();
+        if (newPosition && redPosition) {
+          const newPoints = [newPosition, redPosition];
+          setMeasurePoints(newPoints);
+
+          // Recalculate distance and bearing
+          const result = calculateDistanceAndBearing(
+            newPoints[0],
+            newPoints[1]
+          );
+          setMeasureResult(result);
+
+          // Update the polyline
+          if (measureLineRef.current) {
+            measureLineRef.current.setPath(newPoints);
+          }
+        }
+      });
+
+      redMarker.addListener("dragend", () => {
+        const greenPosition = greenMarker.getPosition();
+        const newPosition = redMarker.getPosition();
+        if (greenPosition && newPosition) {
+          const newPoints = [greenPosition, newPosition];
+          setMeasurePoints(newPoints);
+
+          // Recalculate distance and bearing
+          const result = calculateDistanceAndBearing(
+            newPoints[0],
+            newPoints[1]
+          );
+          setMeasureResult(result);
+
+          // Update the polyline
+          if (measureLineRef.current) {
+            measureLineRef.current.setPath(newPoints);
+          }
+        }
+      });
+
+      measureMarkersRef.current = [greenMarker, redMarker];
+
+      // Draw new line
+      measureLineRef.current = new google.maps.Polyline({
+        path: reversedPoints,
+        geodesic: true,
+        strokeColor: "#ff0000",
+        strokeOpacity: 1.0,
+        strokeWeight: 3,
+        map: map.current,
+      });
+    }
+  };
+
+  // Cancel measuring and clear everything
+  const cancelMeasuring = () => {
+    setIsMeasuring(false);
+    setMeasureStep("idle");
+    setMeasurePoints([]);
+    setMeasureResult(null);
+    setMeasureSwapCount(0); // Reset swap count
+
+    // Clear markers
+    measureMarkersRef.current.forEach((marker) => marker.setMap(null));
+    measureMarkersRef.current = [];
+
+    // Clear line
+    if (measureLineRef.current) {
+      measureLineRef.current.setMap(null);
+      measureLineRef.current = null;
+    }
+  };
+
+  // Add click listeners to markers when measurement is complete
+  useEffect(() => {
+    if (
+      measurePoints.length === 2 &&
+      !isMeasuring &&
+      measureMarkersRef.current.length === 2
+    ) {
+      console.log(
+        "Adding click listeners to markers, measurePoints length:",
+        measurePoints.length,
+        "swap count:",
+        measureSwapCount
+      );
+
+      const greenMarker = measureMarkersRef.current[0];
+      const redMarker = measureMarkersRef.current[1];
+
+      // Clear any existing listeners first
+      google.maps.event.clearInstanceListeners(greenMarker);
+      google.maps.event.clearInstanceListeners(redMarker);
+
+      greenMarker.setTitle("First Point (Click to move crosshair here)");
+
+      greenMarker.addListener("click", () => {
+        console.log("Green marker clicked!");
+        reverseMeasurement(true); // true = green marker clicked
+      });
+
+      redMarker.addListener("click", () => {
+        console.log("Red marker clicked!");
+        reverseMeasurement(false); // false = red marker clicked
+      });
+
+      // Add drag listeners to update measurement when markers are moved
+      greenMarker.addListener("dragend", () => {
+        const newPosition = greenMarker.getPosition();
+        const redPosition = redMarker.getPosition();
+        if (newPosition && redPosition) {
+          const newPoints = [newPosition, redPosition];
+          setMeasurePoints(newPoints);
+
+          // Recalculate distance and bearing
+          const result = calculateDistanceAndBearing(
+            newPoints[0],
+            newPoints[1]
+          );
+          setMeasureResult(result);
+
+          // Update the polyline
+          if (measureLineRef.current) {
+            measureLineRef.current.setPath(newPoints);
+          }
+        }
+      });
+
+      redMarker.addListener("dragend", () => {
+        const greenPosition = greenMarker.getPosition();
+        const newPosition = redMarker.getPosition();
+        if (greenPosition && newPosition) {
+          const newPoints = [greenPosition, newPosition];
+          setMeasurePoints(newPoints);
+
+          // Recalculate distance and bearing
+          const result = calculateDistanceAndBearing(
+            newPoints[0],
+            newPoints[1]
+          );
+          setMeasureResult(result);
+
+          // Update the polyline
+          if (measureLineRef.current) {
+            measureLineRef.current.setPath(newPoints);
+          }
+        }
+      });
+    }
+  }, [isMeasuring, measureSwapCount]); // Removed measurePoints.length to prevent circular dependency
 
   // Calculate dynamic scale bar with appropriate intervals
   const calculateScale = () => {
@@ -332,55 +644,6 @@ export function GoogleMapsCrosshair({
             updateCoordinates();
             setShowZoomSlider(true);
           });
-
-          // Add click listener for measuring
-          map.current.addListener(
-            "click",
-            (event: google.maps.MapMouseEvent) => {
-              if (isMeasuring && event.latLng) {
-                const newPoints = [...measurePoints, event.latLng];
-                setMeasurePoints(newPoints);
-
-                // Add marker
-                const marker = new google.maps.Marker({
-                  position: event.latLng,
-                  map: map.current,
-                  title: `Point ${newPoints.length}`,
-                  icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 6,
-                    fillColor: "#ff0000",
-                    fillOpacity: 1,
-                    strokeColor: "#ffffff",
-                    strokeWeight: 2,
-                  },
-                });
-                measureMarkersRef.current.push(marker);
-
-                // If we have two points, calculate distance and bearing
-                if (newPoints.length === 2) {
-                  const result = calculateDistanceAndBearing(
-                    newPoints[0],
-                    newPoints[1]
-                  );
-                  setMeasureResult(result);
-
-                  // Draw line between points
-                  measureLineRef.current = new google.maps.Polyline({
-                    path: newPoints,
-                    geodesic: true,
-                    strokeColor: "#ff0000",
-                    strokeOpacity: 1.0,
-                    strokeWeight: 3,
-                    map: map.current,
-                  });
-
-                  // Auto-stop measuring after two points
-                  setIsMeasuring(false);
-                }
-              }
-            }
-          );
 
           // Initialize Places Autocomplete (New API)
           if (searchInputRef.current) {
@@ -835,16 +1098,29 @@ export function GoogleMapsCrosshair({
         >
           <MapPin className="w-4 h-4" />
         </Button>
-        <Button
-          onClick={toggleMeasuring}
-          className={`${
-            isMeasuring
-              ? "bg-red-600 hover:bg-red-700"
-              : "bg-orange-600 hover:bg-orange-700"
-          } text-white h-10 w-10 p-0 flex-shrink-0`}
-        >
-          <Ruler className="w-4 h-4" />
-        </Button>
+        {!isMeasuring ? (
+          <Button
+            onClick={startMeasuring}
+            className="bg-orange-600 hover:bg-orange-700 text-white h-10 w-10 p-0 flex-shrink-0"
+          >
+            <Ruler className="w-4 h-4" />
+          </Button>
+        ) : (
+          <>
+            <Button
+              onClick={confirmSecondPoint}
+              className="bg-green-600 hover:bg-green-700 text-white h-10 w-10 p-0 flex-shrink-0"
+            >
+              <Check className="w-4 h-4" />
+            </Button>
+            <Button
+              onClick={cancelMeasuring}
+              className="bg-red-600 hover:bg-red-700 text-white h-10 w-10 p-0 flex-shrink-0"
+            >
+              ×
+            </Button>
+          </>
+        )}
         <Button
           onClick={toggleFullscreen}
           className="bg-purple-600 hover:bg-purple-700 text-white h-10 w-10 p-0 flex-shrink-0"
@@ -1037,7 +1313,7 @@ export function GoogleMapsCrosshair({
                     </span>
                   </div>
                   <div className="text-white/90 text-sm">
-                    <span className="text-white/70">Bearing: </span>
+                    <span className="text-white/70">True Bearing: </span>
                     <span className="font-medium">{measureResult.bearing}</span>
                   </div>
                 </div>
@@ -1051,9 +1327,7 @@ export function GoogleMapsCrosshair({
           <div className="absolute top-2 left-1/2 transform -translate-x-1/2 pointer-events-none">
             <div className="bg-orange-600/90 backdrop-blur-sm rounded-lg border border-orange-400/30 px-3 py-2">
               <div className="text-white text-sm font-medium text-center">
-                {measurePoints.length === 0
-                  ? "Click first point on map"
-                  : "Click second point to measure"}
+                Move crosshair to target location, then click ✓ to measure
               </div>
             </div>
           </div>
