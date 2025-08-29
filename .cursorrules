@@ -122,6 +122,7 @@ If needed, you can further use the `web_scraper.py` file to scrape the web page 
 - When build fails due to missing pages, check for development/example pages that can be safely removed
 - For BNG coordinate conversions, proj4 requires manual projection definition using proj4.defs() - EPSG:27700 is not built-in
 - Use direct OpenStreetMap tiles (tile.openstreetmap.org) for simple map implementations rather than complex tile services
+- CRITICAL: mgrs.toPoint() returns coordinates in [lng, lat] format, NOT [lat, lng]. Always destructure as const [lng, lat] = mgrs.toPoint()
 
 # Scratchpad
 
@@ -916,12 +917,41 @@ const parseCoordinateInput = (input: string) => {
 2. `components/GoogleMapsCrosshair.tsx` - Enhanced search with DDM/DMS parsing
 3. `.cursorrules` - Updated task tracking and implementation details
 
+## Task: Fix Critical MGRS Coordinate Bug
+
+### Issue:
+
+User reported that searching for "30U WB 38193 06178" was showing "39M VT 56224 28060" as the result, indicating a coordinate swap bug.
+
+### Root Cause:
+
+The `parseMGRS` function was incorrectly destructuring coordinates from `mgrs.toPoint()`:
+
+- **Bug**: `const [lat, lng] = mgrs.toPoint(cleaned);`
+- **Fix**: `const [lng, lat] = mgrs.toPoint(cleaned);`
+
+The MGRS library returns coordinates in `[longitude, latitude]` format, but we were treating them as `[latitude, longitude]`.
+
+### Results:
+
+✅ **Bug Fixed**: MGRS search now returns correct coordinates
+✅ **Validation**: Input "30U WB 38193 06178" now correctly shows same MGRS coordinate
+✅ **Root Cause**: Coordinate order mismatch between library and our parsing
+✅ **GitHub**: Committed fix (commit: f9e7b04)
+
+### Technical Details:
+
+- **Input**: `30U WB 38193 06178`
+- **Before Fix**: Showed `39M VT 56224 28060` (lat/lng swapped)
+- **After Fix**: Correctly shows `30U WB 38193 06178`
+- **Coordinates**: `{ lat: 50.6062462737307, lng: -2.460251297396608 }`
+
 ## Final Deployment: Complete Coordinate Search System
 
 ### Deployment Summary:
 
-✅ **GitHub**: Successfully pushed to main branch (commit: 817922b)  
-✅ **Vercel**: Deployed to production environment
+✅ **GitHub**: Successfully pushed to main branch (commit: f9e7b04)  
+✅ **Vercel**: Ready for deployment with coordinate bug fix
 🌐 **Live URL**: https://effe-doppia-8inbpshg2-murdoc527s-projects.vercel.app
 
 ### Features Now Live in Production:
@@ -931,6 +961,7 @@ const parseCoordinateInput = (input: string) => {
 3. **Traditional Navigation Support**: Marine/aviation coordinate formats
 4. **Optimized UI**: Compact map controls with proper space utilization
 5. **Professional Integration**: Seamless address + coordinate search
+6. **MGRS Accuracy**: Fixed coordinate swap bug for precise navigation
 
 ### Complete Coordinate Format Coverage:
 
@@ -938,7 +969,7 @@ const parseCoordinateInput = (input: string) => {
 - **DDM**: `51° 30.444' N, 0° 7.667' W`
 - **DMS**: `51° 30' 26.6" N, 0° 7' 40.0" W`
 - **BNG**: `TQ 12345 67890`
-- **MGRS**: `30UXC1234567890`
+- **MGRS**: `30UXC1234567890` (now with correct coordinate handling)
 - **Addresses**: Cities, postcodes, landmarks
 
 ### Technical Achievements:
@@ -948,6 +979,7 @@ const parseCoordinateInput = (input: string) => {
 - **Mobile Optimization**: Touch-friendly controls and responsive design
 - **Performance**: Direct coordinate navigation without unnecessary API calls
 - **Professional UI**: Compact, space-efficient interface design
+- **Bug Resolution**: Critical MGRS coordinate swap fix ensuring navigation accuracy
 
 ## Task: Fix Map Measurement Tool Marker Click Reversal
 
