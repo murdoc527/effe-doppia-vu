@@ -483,7 +483,9 @@ export function GoogleMapsCrosshair({
           position: labelPosition || secondPoint, // fallback to secondPoint if offset fails
           map: map.current,
           icon: createLabelIcon(
-            currentFormatRef.current === "DD" || currentFormatRef.current === "DDM" || currentFormatRef.current === "DMS"
+            currentFormatRef.current === "DD" ||
+              currentFormatRef.current === "DDM" ||
+              currentFormatRef.current === "DMS"
               ? "0 nm"
               : "0 m"
           ),
