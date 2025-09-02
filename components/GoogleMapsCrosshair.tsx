@@ -1971,13 +1971,11 @@ export function GoogleMapsCrosshair({
         )}
 
         {/* Measuring Instructions */}
-        {isMeasuring && (
+        {isMeasuring && measurePoints.length === 1 && (
           <div className="absolute top-2 left-1/2 transform -translate-x-1/2 pointer-events-none">
             <div className="bg-orange-600/90 backdrop-blur-sm rounded-lg border border-orange-400/30 px-3 py-2">
               <div className="text-white text-sm font-medium text-center">
-                {measurePoints.length === 1
-                  ? "Move crosshair to target location, then click ✓ to complete measurement"
-                  : "Click ruler to start measuring"}
+                Move crosshair to target location, then click ✓ to complete measurement
               </div>
             </div>
           </div>
