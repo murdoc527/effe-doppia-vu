@@ -69,6 +69,8 @@ export function GoogleMapsCrosshair({
     null
   );
   const [currentFormatIndex, setCurrentFormatIndex] = useState(0);
+  // Keep the latest format in a ref to avoid closure bugs in Google Maps listeners
+  const currentFormatRef = useRef<CoordinateFormat>("DD");
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [mapType, setMapType] = useState<
     "roadmap" | "satellite" | "hybrid" | "terrain"
@@ -140,6 +142,11 @@ export function GoogleMapsCrosshair({
     return proj.fromDivPixelToLatLng(moved);
   };
 
+  // Keep the ref in sync with current format index
+  useEffect(() => {
+    currentFormatRef.current = formatDisplays[currentFormatIndex].key;
+  }, [currentFormatIndex]);
+
   // Update measurement display (polyline, label, and results)
   const updateMeasurementDisplay = (
     point1: google.maps.LatLng,
@@ -163,7 +170,7 @@ export function GoogleMapsCrosshair({
       const newResult = calculateDistanceAndBearing(
         point1,
         point2,
-        formatDisplays[currentFormatIndex].key
+        currentFormatRef.current
       );
       setTempMeasureResult(newResult);
 
@@ -475,7 +482,11 @@ export function GoogleMapsCrosshair({
         const labelMarker = new google.maps.Marker({
           position: labelPosition || secondPoint, // fallback to secondPoint if offset fails
           map: map.current,
-          icon: createLabelIcon("0 m"),
+          icon: createLabelIcon(
+            currentFormatRef.current === "DD" || currentFormatRef.current === "DDM" || currentFormatRef.current === "DMS"
+              ? "0 nm"
+              : "0 m"
+          ),
           clickable: false,
           zIndex: 1000,
         });
@@ -507,11 +518,11 @@ export function GoogleMapsCrosshair({
           const result = calculateDistanceAndBearing(
             newPosition,
             redPosition,
-            formatDisplays[currentFormatIndex].key
+            currentFormatRef.current
           );
           console.log(
             "Green marker drag - new result with format:",
-            formatDisplays[currentFormatIndex].key,
+            currentFormatRef.current,
             result
           );
           setTempMeasureResult(result);
@@ -586,11 +597,11 @@ export function GoogleMapsCrosshair({
           const result = calculateDistanceAndBearing(
             newPosition,
             greenPosition,
-            formatDisplays[currentFormatIndex].key
+            currentFormatRef.current
           );
           console.log(
             "Red marker drag - new result with format:",
-            formatDisplays[currentFormatIndex].key,
+            currentFormatRef.current,
             result
           );
           setTempMeasureResult(result);
@@ -662,7 +673,7 @@ export function GoogleMapsCrosshair({
           const result = calculateDistanceAndBearing(
             greenPosition,
             redPosition,
-            formatDisplays[currentFormatIndex].key
+            currentFormatRef.current
           );
           setTempMeasureResult(result);
           updateMeasurementDisplay(greenPosition, redPosition, true);
@@ -712,7 +723,7 @@ export function GoogleMapsCrosshair({
           const result = calculateDistanceAndBearing(
             redPosition,
             greenPosition,
-            formatDisplays[currentFormatIndex].key
+            currentFormatRef.current
           );
           setTempMeasureResult(result);
           updateMeasurementDisplay(redPosition, greenPosition, true);
@@ -750,7 +761,7 @@ export function GoogleMapsCrosshair({
         const initialResult = calculateDistanceAndBearing(
           center,
           secondPoint,
-          formatDisplays[currentFormatIndex].key
+          currentFormatRef.current
         );
         setTempMeasureResult(initialResult);
         updateMeasurementDisplay(center, secondPoint, true);
@@ -806,7 +817,7 @@ export function GoogleMapsCrosshair({
       const result = calculateDistanceAndBearing(
         reversedPoints[0],
         reversedPoints[1],
-        formatDisplays[currentFormatIndex].key
+        currentFormatRef.current
       );
       setMeasureResult(result);
 
@@ -870,7 +881,7 @@ export function GoogleMapsCrosshair({
           const result = calculateDistanceAndBearing(
             newPoints[0],
             newPoints[1],
-            formatDisplays[currentFormatIndex].key
+            currentFormatRef.current
           );
           setMeasureResult(result);
 
@@ -892,7 +903,7 @@ export function GoogleMapsCrosshair({
           const result = calculateDistanceAndBearing(
             newPoints[0],
             newPoints[1],
-            formatDisplays[currentFormatIndex].key
+            currentFormatRef.current
           );
           setMeasureResult(result);
 
@@ -1003,7 +1014,7 @@ export function GoogleMapsCrosshair({
       const newResult = calculateDistanceAndBearing(
         measurePoints[0],
         measurePoints[1],
-        formatDisplays[currentFormatIndex].key
+        currentFormatRef.current
       );
 
       // Update the result display
@@ -1029,7 +1040,7 @@ export function GoogleMapsCrosshair({
           const newTempResult = calculateDistanceAndBearing(
             point1,
             point2,
-            formatDisplays[currentFormatIndex].key
+            currentFormatRef.current
           );
 
           setTempMeasureResult(newTempResult);
@@ -1510,7 +1521,7 @@ export function GoogleMapsCrosshair({
         const newTempResult = calculateDistanceAndBearing(
           newTempPoints[0],
           newTempPoints[1],
-          formatDisplays[currentFormatIndex].key
+          currentFormatRef.current
         );
         setTempMeasureResult(newTempResult);
 
@@ -1975,7 +1986,8 @@ export function GoogleMapsCrosshair({
           <div className="absolute top-2 left-1/2 transform -translate-x-1/2 pointer-events-none">
             <div className="bg-orange-600/90 backdrop-blur-sm rounded-lg border border-orange-400/30 px-3 py-2">
               <div className="text-white text-sm font-medium text-center">
-                Move crosshair to target location, then click ✓ to complete measurement
+                Move crosshair to target location, then click ✓ to complete
+                measurement
               </div>
             </div>
           </div>
