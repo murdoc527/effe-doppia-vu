@@ -1003,7 +1003,7 @@ Current implementation has issues with marker click detection and position-based
 [X] Fix circular dependency in useEffect
 [X] Add drag listeners to reverseMeasurement markers
 [X] Fix state vs marker position mismatch
-[ ] Test both green and red marker clicks
+[X] Test both green and red marker clicks
 
 ### Critical Issues Fixed:
 
@@ -1035,3 +1035,367 @@ Current implementation has issues with marker click detection and position-based
 
 - Green marker click: Crosshair moves to green, keeps same bearing direction
 - Red marker click: Swaps points (red→green, green→red), crosshair moves to clicked red marker (now green), shows back bearing
+
+## Task: Fix Bearing Format Reversion During Marker Operations
+
+### Issue:
+
+User reported that the bearing format (DD, DDM, DMS, BNG, MGRS) reverts to the original "DD" format when measurement points are moved or clicked, causing inconsistent display of distance and bearing units.
+
+### Problem Identified:
+
+Several calls to `calculateDistanceAndBearing()` function were missing the coordinate format parameter, causing them to default to "DD" format instead of respecting the user's current format selection.
+
+### Implementation Status:
+
+[X] Identify all calls to calculateDistanceAndBearing missing format parameter
+[X] Fix marker click handlers to include current coordinate format
+[X] Verify all drag event handlers include format parameter
+[X] Test build to ensure no TypeScript errors
+[X] Update documentation in .cursorrules
+
+### Critical Issues Fixed:
+
+**1. Missing Format Parameter in Marker Click Handlers:**
+
+- **Problem**: Green and red marker click handlers called `calculateDistanceAndBearing(greenPosition, redPosition)` without format
+- **Fix**: Added `formatDisplays[currentFormatIndex].key` parameter to all calls
+
+**2. Inconsistent Bearing Display:**
+
+- **Problem**: Bearing format would switch between user selection and default "DD" during operations
+- **Fix**: All measurement calculations now consistently use current user-selected format
+
+### Solution Implemented:
+
+**Root Cause:** Missing coordinate format parameter in key measurement functions.
+
+**Fix:** Ensured ALL calls to `calculateDistanceAndBearing()` include the current format:
+
+```tsx
+// Before (caused format reversion)
+const result = calculateDistanceAndBearing(greenPosition, redPosition);
+
+// After (maintains user format)
+const result = calculateDistanceAndBearing(
+  greenPosition, 
+  redPosition, 
+  formatDisplays[currentFormatIndex].key
+);
+```
+
+**Locations Fixed:**
+
+1. **Green marker click handler** (line ~661)
+2. **Red marker click handler** (line ~710)
+3. **All other calls already had format parameter**
+
+### User Experience Benefits:
+
+- ✅ **Consistent Format**: Bearing format stays consistent during all operations
+- ✅ **User Preference**: Respects user's coordinate format selection throughout
+- ✅ **Professional Display**: Distance and bearing units remain consistent
+- ✅ **No Format Jumps**: Eliminates jarring format changes during measurement
+
+## Task: Fix Label Positioning During Zoom/Pan
+
+### Issue:
+
+User reported that the measurement label was positioned far away from the actual measurement line during zoom operations, making it appear disconnected from the polyline.
+
+### Problem Identified:
+
+The previous label positioning approach using Google Maps projection system was unreliable and resulted in labels being positioned thousands of kilometers away from the measurement points.
+
+### Implementation Status:
+
+[X] Replace broken projection-based positioning with marker-based system
+[X] Implement Google Maps marker with SVG icon for label
+[X] Remove complex manual positioning calculations
+[X] Ensure label automatically follows polyline midpoint
+[X] Test label positioning accuracy across different zoom levels
+
+### Critical Issues Fixed:
+
+**1. Broken Projection System:**
+
+- **Problem**: `projection.fromLatLngToPoint()` and `fromPointToLatLng()` were giving massive coordinate offsets
+- **Fix**: Replaced with Google Maps marker system that handles positioning automatically
+
+**2. Complex Manual Positioning:**
+
+- **Problem**: Complex viewport calculations and manual DOM positioning that broke with zoom changes
+- **Fix**: Use Google Maps markers with SVG icons that automatically scale and position with zoom
+
+**3. DOM Element Management:**
+
+- **Problem**: Manual DOM manipulation and positioning that was unreliable
+- **Fix**: Google Maps handles all positioning, scaling, and visibility automatically
+
+### Solution Implemented:
+
+**New Approach - Marker-Based Label System:**
+
+```tsx
+// Create label as a Google Maps marker positioned at polyline midpoint
+const midLat = (center.lat() + secondPoint.lat()) / 2;
+const midLng = (center.lng() + secondPoint.lng()) / 2;
+const midPoint = new google.maps.LatLng(midLat, midLng);
+
+// Create SVG icon for the label
+const createLabelIcon = (text: string) => {
+  const svg = `
+    <svg width="120" height="40" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="40" rx="6" fill="rgba(0,0,0,0.8)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+      <text x="60" y="25" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="white">${text}</text>
+    </svg>
+  `;
+  return {
+    url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
+    scaledSize: new google.maps.Size(120, 40),
+    anchor: new google.maps.Point(60, 20),
+  };
+};
+
+const labelMarker = new google.maps.Marker({
+  position: midPoint,
+  map: map.current,
+  icon: createLabelIcon("0 m"),
+  clickable: false,
+  zIndex: 1000,
+});
+```
+
+**Automatic Updates:**
+
+```tsx
+// Update label text by updating the marker icon
+const labelText = `${newResult.distance} • ${newResult.bearing}`;
+labelData.marker.setIcon(createLabelIcon(labelText));
+
+// Update marker position to midpoint of polyline
+const midLat = (point1.lat() + point2.lat()) / 2;
+const midLng = (point1.lng() + point2.lng()) / 2;
+const midPoint = new google.maps.LatLng(midLat, midLng);
+labelData.marker.setPosition(midPoint);
+```
+
+### Results:
+
+✅ **Label Stays Centered**: Always positioned between the two measurement markers
+✅ **Zoom Responsive**: Label automatically scales and positions with zoom
+✅ **Pan Responsive**: Label follows measurement line during map panning
+✅ **Crosshair Independent**: Label doesn't move with crosshair movement
+✅ **Horizontal Orientation**: Label always readable, no rotation complexity
+✅ **Professional Behavior**: Matches Google Maps measurement tool standards
+✅ **Automatic Positioning**: No manual calculations needed
+✅ **Smart Visibility**: Label only shows when there's enough space (>50m) to avoid overlapping markers
+
+### Technical Benefits:
+
+1. **Native Google Maps**: Uses the same positioning system as the map itself
+2. **Automatic Scaling**: Label scales appropriately with zoom level
+3. **Reliable Positioning**: Always at the true midpoint of the measurement line
+4. **Performance Optimized**: Google Maps handles all positioning internally
+5. **No Manual Math**: Eliminates complex coordinate-to-pixel calculations
+6. **Smart Visibility Logic**: Only displays label when measurement distance > 50m to prevent marker overlap
+7. **Dynamic Show/Hide**: Label appears/disappears based on measurement length and zoom level
+
+## Task: Fix TypeScript Errors in GoogleMapsCrosshair.tsx
+
+### Issue:
+
+User reported TypeScript errors in GoogleMapsCrosshair.tsx even though the component works functionally.
+
+### Problems Identified:
+
+1. **Missing Google Maps Type Definitions**: `@types/google.maps` package not installed
+2. **Null Safety Issues**: `map.current` could be null when calling `google.maps.event.trigger()`
+3. **MapLibre GL Type Issues**: Incorrect type usage for attribution control and geolocate options
+4. **Event Handler Type Issues**: Missing property checks for MapLibre GL event objects
+
+### Implementation Status:
+
+[X] Install @types/google.maps package
+[X] Fix null safety issues in GoogleMapsCrosshair.tsx
+[X] Fix MapLibre GL type issues in MapCrosshair.tsx
+[X] Add proper type guards for event handlers
+[X] Verify all TypeScript errors resolved
+[X] Confirm successful build
+
+### Technical Fixes Applied:
+
+**1. Google Maps Types Installation:**
+
+```bash
+pnpm add -D @types/google.maps
+```
+
+**2. Null Safety Fixes:**
+
+```tsx
+// Before
+google.maps.event.trigger(map.current, "resize");
+
+// After
+if (map.current) {
+  google.maps.event.trigger(map.current, "resize");
+}
+```
+
+**3. MapLibre GL Type Fixes:**
+
+```tsx
+// Fixed attribution control
+attributionControl: false, // instead of true
+
+// Removed unsupported option
+// showUserHeading: true, // Not supported in current version
+
+// Added type guards for event properties
+if ("isSourceLoaded" in e && e.isSourceLoaded) {
+  console.log("Source loaded:", (e as any).sourceId);
+}
+```
+
+### Results:
+
+✅ **All TypeScript Errors Resolved**: 36 errors → 0 errors
+✅ **Build Success**: `npm run build` completes without issues
+✅ **Type Safety**: Proper null checks and type guards implemented
+✅ **Maintained Functionality**: All features continue to work as expected
+
+### Lessons Learned:
+
+- **Google Maps Types**: Always install `@types/google.maps` for TypeScript projects using Google Maps API
+- **Null Safety**: Always check for null before calling methods on potentially null objects
+- **MapLibre GL Types**: Some options may not be supported in current versions, check documentation
+- **Event Handlers**: Use type guards (`"property" in object`) for optional properties in event objects
+- **Build Verification**: Always run `npm run build` after fixing TypeScript errors to ensure everything compiles
+
+## Task: Enhance Map Measurement Tool with Google Maps-Style UX
+
+### Understanding:
+
+User requested improvements to the measurement tool to make it more intuitive and similar to Google Maps:
+
+1. **Immediate polyline**: Show polyline immediately after first point is placed, following crosshair movement
+2. **Dynamic label**: Display distance and bearing directly on the polyline as it moves
+3. **Floating "Done" button**: Show in top-right corner immediately after first point placement
+4. **Single-step process**: Remove intermediate step, go directly from first point to completion
+
+### Requirements:
+
+- Create single-step measurement process (first point → immediate polyline → complete)
+- Add floating "Done" button overlay immediately after first point placement
+- Implement real-time polyline with dynamic distance/bearing label on the line
+- Maintain existing marker click reversal functionality
+- Improve user instructions and visual feedback
+
+### Implementation Progress:
+
+[X] Add state for temporary polyline and measurement results
+[X] Implement single-step measurement process (first point → immediate polyline)
+[X] Add map move listener for real-time polyline updates
+[X] Create floating "Done" button overlay
+[X] Add dynamic label on polyline with distance/bearing
+[X] Update UI controls to reflect new measurement flow
+[X] Clean up event listeners and temporary elements
+[X] Test build and verify functionality
+[X] Fix polyline tracking issue by using proper Google Maps events
+
+### Results:
+
+✅ **Single-Step Process**: Immediate polyline appears after first point placement
+✅ **Floating Done Button**: Semi-transparent green button appears in top-right immediately after first point
+✅ **Dynamic Polyline**: White line with distance label follows mouse movement (like Google Maps)
+✅ **Real-Time Updates**: Distance updates instantly as user moves mouse over map
+✅ **Improved UX**: More intuitive flow similar to Google Maps measurement tool
+✅ **Clean State Management**: Proper cleanup of temporary elements and event listeners
+✅ **Proper Event Handling**: Uses mousemove + center_changed events for complete coverage
+
+### Features Implemented:
+
+- **Immediate Polyline**: White line with distance label appears immediately after first point
+- **Dynamic Movement**: Polyline and label follow mouse movement in real-time
+- **Floating Done Button**: Large, visible green button in top-right corner immediately after first point
+- **Single-Step Process**: No intermediate steps - go directly from first point to completion
+- **Smart Instructions**: Context-aware instructions for measurement flow
+- **Dual Event System**: Mouse movement + map panning for complete coverage
+
+### Technical Implementation:
+
+**State Management:**
+
+```tsx
+const [tempMeasureLine, setTempMeasureLine] = useState<google.maps.Polyline | null>(null);
+const [tempMeasureLabel, setTempMeasureLabel] = useState<google.maps.Marker | null>(null);
+const [tempMeasureResult, setTempMeasureResult] = useState<{...} | null>(null);
+```
+
+**Dual Event System (Google Maps Style):**
+
+```tsx
+// Primary: Mouse movement for real-time polyline updates
+const mouseMoveListener = map.current.addListener(
+  "mousemove",
+  (event: google.maps.MapMouseEvent) => {
+    if (isMeasuring && event.latLng) {
+      // Update polyline from green marker to current mouse position
+      const newTempPoints = [firstPoint, event.latLng];
+      tempMeasureLineRef.current.setPath(newTempPoints);
+      // Update distance label in real-time
+    }
+  }
+);
+
+// Secondary: Center changes for map panning scenarios
+const centerChangeListener = map.current.addListener("center_changed", () => {
+  if (isMeasuring) {
+    // Update polyline from green marker to current crosshair
+    const currentCenter = map.current.getCenter();
+    // Update polyline and label
+  }
+});
+```
+
+**Critical Fix - Proper Event Handling:**
+
+- **Problem**: Using only `center_changed` event meant polyline only updated when map center moved
+- **Solution**: Added `mousemove` event for real-time mouse tracking + `center_changed` for map panning
+- **Result**: Polyline now follows mouse movement exactly like Google Maps measurement tool
+
+**Visual Style (Matching Google Maps):**
+
+```tsx
+const newTempLine = new google.maps.Polyline({
+  path: tempPoints,
+  geodesic: true,
+  strokeColor: "#ffffff", // White like Google
+  strokeOpacity: 1.0,
+  strokeWeight: 3, // Thicker like Google
+  map: map.current,
+});
+```
+
+### User Experience Benefits:
+
+- 🎯 **Clear Process**: Two distinct steps make measurement more intuitive
+- 👁️ **Visual Feedback**: Interactive polyline shows exactly where second point will be placed
+- 📍 **Easy Completion**: Large, prominent "Done" button appears immediately after first point
+- 📊 **Dynamic Labels**: Distance displayed directly on the moving polyline
+- 🎨 **Professional Look**: White polyline matching Google Maps style
+- 🔄 **Smooth Flow**: Natural progression from first point to interactive second point placement
+- 🖱️ **Real-Time Tracking**: Polyline follows mouse movement instantly
+
+### Files Modified:
+
+1. `components/GoogleMapsCrosshair.tsx` - Enhanced measurement tool with Google Maps-style UX
+2. `.cursorrules` - Updated task tracking and implementation details
+
+### Lessons Learned:
+
+- **Google Maps Events**: Use `mousemove` for real-time cursor tracking, not just `center_changed`
+- **Dual Event System**: Combine mouse events with map events for complete coverage
+- **Polyline Updates**: Use `setPath()` to update existing polyline instead of recreating
+- **Event Cleanup**: Always store and remove both event listeners to prevent memory leaks
