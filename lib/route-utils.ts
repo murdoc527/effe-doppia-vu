@@ -129,14 +129,63 @@ export function formatDistance(meters: number): string {
   }
 }
 
+// Format distance with specific unit
+export function formatDistanceWithUnit(
+  meters: number,
+  unit: "nm" | "km" | "mi" | "m"
+): string {
+  switch (unit) {
+    case "nm": // Nautical miles
+      const nm = meters / 1852;
+      return nm < 0.1
+        ? `${Math.round(meters)} m`
+        : nm < 10
+        ? `${nm.toFixed(2)} nm`
+        : `${Math.round(nm)} nm`;
+
+    case "km": // Kilometers
+      const km = meters / 1000;
+      return km < 0.1
+        ? `${Math.round(meters)} m`
+        : km < 10
+        ? `${km.toFixed(2)} km`
+        : `${Math.round(km)} km`;
+
+    case "mi": // Statute miles
+      const mi = meters / 1609.34;
+      return mi < 0.1
+        ? `${Math.round(meters)} m`
+        : mi < 10
+        ? `${mi.toFixed(2)} mi`
+        : `${Math.round(mi)} mi`;
+
+    case "m": // Meters only
+      return `${Math.round(meters)} m`;
+  }
+}
+
+// Format bearing with different formats
+export function formatBearing(
+  bearing: number,
+  format: "true" | "magnetic" | "both",
+  magneticVariation: number = 0 // Optional magnetic variation in degrees
+): string {
+  const trueBearing = Math.round(bearing);
+  const magneticBearing = Math.round((bearing + magneticVariation + 360) % 360);
+
+  switch (format) {
+    case "true":
+      return `${trueBearing}°T`;
+    case "magnetic":
+      return `${magneticBearing}°M`;
+    case "both":
+      return `${trueBearing}°T/${magneticBearing}°M`;
+  }
+}
+
 // Format elevation for display
 export function formatElevation(meters: number): string {
   return `${Math.round(meters)} m`;
-}
-
-// Format bearing for display
-export function formatBearing(degrees: number): string {
-  return `${Math.round(degrees)}°`;
 }
 
 // Generate unique waypoint ID

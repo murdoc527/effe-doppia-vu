@@ -22,6 +22,8 @@ import {
   calculateRouteSegments,
   calculateRouteStats,
   formatDistance,
+  formatDistanceWithUnit,
+  formatBearing,
   formatElevation,
   reverseRoute,
   downloadGPX,
@@ -81,6 +83,8 @@ import {
   Trash,
   ArrowUpDown,
   Undo2,
+  Compass,
+  Ruler,
 } from "lucide-react";
 
 interface RouteBuilderProps {
@@ -126,6 +130,7 @@ interface WaypointPanelProps {
   searchInputRef: React.RefObject<HTMLInputElement>;
   cruisingSpeed: number;
   setCruisingSpeed: React.Dispatch<React.SetStateAction<number>>;
+  distanceUnit: "nm" | "km" | "mi" | "m";
 }
 
 interface WaypointMarker {
@@ -172,6 +177,7 @@ const WaypointPanel: React.FC<WaypointPanelProps> = ({
   searchInputRef,
   cruisingSpeed,
   setCruisingSpeed,
+  distanceUnit,
 }) => {
   return (
     <div className="w-full h-full flex flex-col gap-4">
@@ -285,7 +291,7 @@ const WaypointPanel: React.FC<WaypointPanelProps> = ({
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
                   <span className="text-muted-foreground">Distance:</span>{" "}
-                  {formatDistance(routeStats.totalDistance)}
+                  {formatDistanceWithUnit(routeStats.totalDistance, distanceUnit)}
                 </div>
                 <div>
                   <span className="text-muted-foreground">Waypoints:</span>{" "}
@@ -295,8 +301,18 @@ const WaypointPanel: React.FC<WaypointPanelProps> = ({
                   <div className="col-span-2">
                     <span className="text-muted-foreground">Total Time:</span>{" "}
                     {(() => {
-                      const distanceNm = routeStats.totalDistance / 1852;
-                      const hours = distanceNm / cruisingSpeed;
+                      // Calculate distance in the selected unit
+                      let distanceInUnit: number;
+                      if (distanceUnit === "nm") {
+                        distanceInUnit = routeStats.totalDistance / 1852;
+                      } else if (distanceUnit === "km") {
+                        distanceInUnit = routeStats.totalDistance / 1000;
+                      } else if (distanceUnit === "mi") {
+                        distanceInUnit = routeStats.totalDistance / 1609.34;
+                      } else {
+                        distanceInUnit = routeStats.totalDistance;
+                      }
+                      const hours = distanceInUnit / cruisingSpeed;
                       const h = Math.floor(hours);
                       const m = Math.round((hours - h) * 60);
                       return h > 0 ? `${h}h ${m}m` : `${m}m`;
@@ -501,6 +517,10 @@ const AppBar = React.forwardRef<
     addCurrentLocation: () => void;
     openWaypoints: () => void;
     searchInputAppBarRef: React.RefObject<HTMLInputElement>;
+    distanceUnit: "nm" | "km" | "mi" | "m";
+    setDistanceUnit: (v: "nm" | "km" | "mi" | "m") => void;
+    bearingFormat: "true" | "magnetic" | "both";
+    setBearingFormat: (v: "true" | "magnetic" | "both") => void;
   }
 >(function AppBar(
   {
@@ -526,6 +546,10 @@ const AppBar = React.forwardRef<
     addCurrentLocation,
     openWaypoints,
     searchInputAppBarRef,
+    distanceUnit,
+    setDistanceUnit,
+    bearingFormat,
+    setBearingFormat,
   },
   ref
 ) {
@@ -671,6 +695,31 @@ const AppBar = React.forwardRef<
               ))}
             </SelectContent>
           </Select>
+
+          {/* Distance Unit Selector */}
+          <Select value={distanceUnit} onValueChange={setDistanceUnit}>
+            <SelectTrigger className="h-8 w-[80px]" title="Distance unit">
+              <Ruler className="w-3 h-3" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="nm">nm</SelectItem>
+              <SelectItem value="km">km</SelectItem>
+              <SelectItem value="mi">mi</SelectItem>
+              <SelectItem value="m">m</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Bearing Format Selector */}
+          <Select value={bearingFormat} onValueChange={setBearingFormat}>
+            <SelectTrigger className="h-8 w-[80px]" title="Bearing format">
+              <Compass className="w-3 h-3" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="true">True</SelectItem>
+              <SelectItem value="magnetic">Magnetic</SelectItem>
+              <SelectItem value="both">Both</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
     </div>
@@ -728,6 +777,8 @@ export default function RouteBuilder({
   >("hybrid");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [cruisingSpeed, setCruisingSpeed] = useState<number>(0); // in knots, 0 = not set
+  const [distanceUnit, setDistanceUnit] = useState<"nm" | "km" | "mi" | "m">("nm"); // Distance unit preference
+  const [bearingFormat, setBearingFormat] = useState<"true" | "magnetic" | "both">("true"); // Bearing format preference
   const [currentCenter, setCurrentCenter] = useState<Coordinates>({
     lat: initialCenter[1],
     lng: initialCenter[0],
@@ -1363,7 +1414,7 @@ export default function RouteBuilder({
       clearTimeout(debounceTimer);
       if (rebuildRef.current) cancelAnimationFrame(rebuildRef.current);
     };
-  }, [labelDensity, currentZoom, cruisingSpeed, waypoints]);
+  }, [labelDensity, currentZoom, cruisingSpeed, distanceUnit, bearingFormat, waypoints]);
 
   // Handle map type changes
   useEffect(() => {
@@ -2272,30 +2323,34 @@ export default function RouteBuilder({
           }
         }
 
-        // Build/refresh icon text
-        const bearing = Math.round(
-          calculateSegmentBearing(start.coordinates, end.coordinates)
-        );
-        const bearingText = zoom <= 11 ? `${bearing}°` : `${bearing}°T`;
+        // Build/refresh icon text using user-selected formats
+        const bearing = calculateSegmentBearing(start.coordinates, end.coordinates);
+        const bearingText = formatBearing(bearing, bearingFormat, 0); // TODO: Add magnetic variation calculation
+        const distanceText = formatDistanceWithUnit(distance, distanceUnit);
         
         // Calculate time if cruising speed is set
         let labelText: string;
         if (cruisingSpeed > 0) {
-          const distanceNm = distance / 1852;
-          const hours = distanceNm / cruisingSpeed;
+          // Calculate time based on selected distance unit
+          let distanceInSpeedUnit: number;
+          if (distanceUnit === "nm") {
+            distanceInSpeedUnit = distance / 1852;
+          } else if (distanceUnit === "km") {
+            distanceInSpeedUnit = distance / 1000;
+          } else if (distanceUnit === "mi") {
+            distanceInSpeedUnit = distance / 1609.34;
+          } else {
+            distanceInSpeedUnit = distance;
+          }
+          
+          const hours = distanceInSpeedUnit / cruisingSpeed;
           const h = Math.floor(hours);
           const m = Math.round((hours - h) * 60);
           const timeText = h > 0 ? `${h}h${m}m` : `${m}m`;
           
-          labelText =
-            distance / 1852 < 1
-              ? `${Math.round(distance)} m • ${bearingText} • ${timeText}`
-              : `${(distance / 1852).toFixed(2)} nm • ${bearingText} • ${timeText}`;
+          labelText = `${distanceText} • ${bearingText} • ${timeText}`;
         } else {
-          labelText =
-            distance / 1852 < 1
-              ? `${Math.round(distance)} m • ${bearingText}`
-              : `${(distance / 1852).toFixed(2)} nm • ${bearingText}`;
+          labelText = `${distanceText} • ${bearingText}`;
         }
 
         const icon = createRouteLabel(labelText, zoom);
@@ -2586,6 +2641,10 @@ export default function RouteBuilder({
         addCurrentLocation={addCurrentLocation}
         openWaypoints={() => setIsWaypointsOpen(true)}
         searchInputAppBarRef={searchInputAppBarRef}
+        distanceUnit={distanceUnit}
+        setDistanceUnit={setDistanceUnit}
+        bearingFormat={bearingFormat}
+        setBearingFormat={setBearingFormat}
       />
 
       {/* Map */}
@@ -2674,6 +2733,7 @@ export default function RouteBuilder({
             searchInputRef={searchInputRef}
             cruisingSpeed={cruisingSpeed}
             setCruisingSpeed={setCruisingSpeed}
+            distanceUnit={distanceUnit}
           />
         </div>
       </div>
@@ -2715,6 +2775,7 @@ export default function RouteBuilder({
             searchInputRef={searchInputRef}
             cruisingSpeed={cruisingSpeed}
             setCruisingSpeed={setCruisingSpeed}
+            distanceUnit={distanceUnit}
           />
         </SheetContent>
       </Sheet>
@@ -2841,7 +2902,7 @@ export default function RouteBuilder({
               <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
                 <div className="text-white/60">Distance:</div>
                 <div className="font-mono text-right">
-                  {formatDistance(routeStats.totalDistance)}
+                  {formatDistanceWithUnit(routeStats.totalDistance, distanceUnit)}
                 </div>
                 <div className="text-white/60">Waypoints:</div>
                 <div className="font-mono text-right">{waypoints.length}</div>
@@ -2850,8 +2911,18 @@ export default function RouteBuilder({
                     <div className="text-white/60">Time:</div>
                     <div className="font-mono text-right">
                       {(() => {
-                        const distanceNm = routeStats.totalDistance / 1852;
-                        const hours = distanceNm / cruisingSpeed;
+                        // Calculate distance in the selected unit
+                        let distanceInUnit: number;
+                        if (distanceUnit === "nm") {
+                          distanceInUnit = routeStats.totalDistance / 1852;
+                        } else if (distanceUnit === "km") {
+                          distanceInUnit = routeStats.totalDistance / 1000;
+                        } else if (distanceUnit === "mi") {
+                          distanceInUnit = routeStats.totalDistance / 1609.34;
+                        } else {
+                          distanceInUnit = routeStats.totalDistance;
+                        }
+                        const hours = distanceInUnit / cruisingSpeed;
                         const h = Math.floor(hours);
                         const m = Math.round((hours - h) * 60);
                         return h > 0 ? `${h}h ${m}m` : `${m}m`;
