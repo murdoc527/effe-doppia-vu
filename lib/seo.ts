@@ -284,6 +284,26 @@ export const pageMetadata = {
     url: "/tools/lat-long-converter",
   }),
 
+  routeBuilder: generateMetadata({
+    title: "Route Builder & GPX Creator",
+    description:
+      "Plan and create routes with interactive waypoint management. Export to GPX format, calculate distances and bearings, manage elevation data, and save routes for GPS devices and navigation apps.",
+    keywords: [
+      "route builder",
+      "GPX creator",
+      "waypoint management",
+      "route planning",
+      "GPS route",
+      "navigation route",
+      "track builder",
+      "elevation profile",
+      "route export",
+      "GPX download",
+      "coordinate waypoints",
+    ],
+    url: "/tools/route-builder",
+  }),
+
   projects: generateMetadata({
     title: "Projects",
     description:
@@ -295,6 +315,21 @@ export const pageMetadata = {
       "maritime innovation",
     ],
     url: "/projects",
+  }),
+
+  disclaimer: generateMetadata({
+    title: "Disclaimer",
+    description:
+      "Disclaimer for the navigation tools on this site, including the route builder and related calculators. Important legal information for users.",
+    keywords: [
+      "disclaimer",
+      "legal notice",
+      "terms of use",
+      "navigation tools",
+      "liability",
+      "user responsibility",
+    ],
+    url: "/disclaimer",
   }),
 } as const;
 
@@ -360,7 +395,7 @@ export function generateStructuredData() {
       "@type": "ItemList",
       name: "Maritime Navigation Tools",
       description: "Professional calculators for maritime navigation",
-      numberOfItems: 4,
+      numberOfItems: 5,
       itemListElement: [
         {
           "@type": "ListItem",
@@ -407,6 +442,18 @@ export function generateStructuredData() {
             description:
               "Convert between coordinate formats: DD, DDM, DMS, BNG, and MGRS",
             url: `${APP_URL}/tools/lat-long-converter`,
+            applicationCategory: "Navigation",
+          },
+        },
+        {
+          "@type": "ListItem",
+          position: 5,
+          item: {
+            "@type": "WebApplication",
+            name: "Route Builder & GPX Creator",
+            description:
+              "Plan and create routes with interactive waypoint management and GPX export",
+            url: `${APP_URL}/tools/route-builder`,
             applicationCategory: "Navigation",
           },
         },

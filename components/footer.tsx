@@ -31,20 +31,9 @@ export function Footer() {
     };
   }, []);
 
-  // Parallax effect: footer slides up from behind content
-  // When scroll progress is 0 (top), footer is completely hidden below viewport
-  // When scroll progress is 1 (bottom), footer is fully visible
-  const footerHeight = 120; // Approximate footer height
-  const translateY = (1 - scrollProgress) * footerHeight;
-
+  // Footer is always visible, no parallax hiding
   return (
-    <footer
-      className="relative z-30 mt-auto"
-      style={{
-        transform: `translateY(${translateY}px)`,
-        transition: "transform 0.1s ease-out",
-      }}
-    >
+    <footer className="relative z-30 mt-auto">
       <div className="max-w-6xl mx-auto p-6">
         <div className="bg-white/10 backdrop-blur-md rounded-2xl px-6 py-4 border border-white/20">
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 text-white/80 text-sm">
@@ -52,6 +41,15 @@ export function Footer() {
               <p>
                 &copy; {new Date().getFullYear()} Effe Doppia Vu. All rights
                 reserved.
+              </p>
+              <p className="mt-2 text-xs">
+                Use of these navigation tools is at your own risk.{" "}
+                <a
+                  href="/disclaimer"
+                  className="underline hover:text-white transition-colors"
+                >
+                  View disclaimer
+                </a>
               </p>
             </div>
           </div>

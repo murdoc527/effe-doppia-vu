@@ -12,6 +12,20 @@ export function AppWrapper({ children }: AppWrapperProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [showContent, setShowContent] = useState(false);
 
+  useEffect(() => {
+    // Check if this is the first visit to the site
+    const hasVisitedBefore = sessionStorage.getItem("hasVisitedBefore");
+
+    if (hasVisitedBefore) {
+      // User has visited before, skip loading screen
+      setIsLoading(false);
+      setShowContent(true);
+    } else {
+      // First visit, show loading screen and mark as visited
+      sessionStorage.setItem("hasVisitedBefore", "true");
+    }
+  }, []);
+
   const handleLoadingComplete = () => {
     setIsLoading(false);
     setShowContent(true);

@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* iOS Safari address bar fix - prevents background shrinking when address bar tucks away */
+@supports (-webkit-touch-callout: none) {
+  .h-\[100dvh\] {
+    height: -webkit-fill-available;
+    min-height: -webkit-fill-available;
+  }
+}
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -69,6 +77,24 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
+}
+
+/* Measurement label styles */
+.measurement-label {
+  background: rgba(0, 0, 0, 0.8) !important;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(8px) !important;
+  white-space: nowrap !important;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif !important;
+  transform-origin: center !important;
+  display: inline-block !important;
+  text-align: center !important;
+  color: #ffffff !important;
+  font-size: 12px !important;
+  font-weight: bold !important;
+  z-index: 1000 !important;
 }
 
 @theme inline {

@@ -10,10 +10,6 @@ export function Navigation() {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
-    console.log(
-      "🚀 FOUND THE ISSUE! Body has overflowY:auto, so BODY scrolls, not window!"
-    );
-
     const handleScroll = () => {
       // Check both window and body scroll since body has overflowY: auto
       const windowScrollY =
@@ -22,23 +18,13 @@ export function Navigation() {
         document.documentElement.scrollTop;
       const bodyScrollTop = document.body?.scrollTop || 0;
 
-      console.log(
-        "📜 SCROLL EVENT - Window Y:",
-        windowScrollY,
-        "Body Y:",
-        bodyScrollTop
-      );
-
       // Use whichever one is actually scrolling
       const scrollY = Math.max(windowScrollY, bodyScrollTop);
-      const shouldBeVisible = scrollY <= 5;
 
-      console.log(
-        "🎯 Final scroll Y:",
-        scrollY,
-        "should be visible:",
-        shouldBeVisible
-      );
+      // More generous threshold - hide nav only after significant scroll
+      // This prevents nav from disappearing on tiny scroll movements
+      const shouldBeVisible = scrollY <= 100;
+
       setIsVisible(shouldBeVisible);
     };
 
@@ -48,23 +34,15 @@ export function Navigation() {
       window.pageYOffset ||
       document.documentElement.scrollTop;
     const initialBodyScrollY = document.body?.scrollTop || 0;
-    console.log(
-      "🎯 Initial - Window Y:",
-      initialWindowScrollY,
-      "Body Y:",
-      initialBodyScrollY
-    );
 
     const initialScrollY = Math.max(initialWindowScrollY, initialBodyScrollY);
-    setIsVisible(initialScrollY <= 5);
+    setIsVisible(initialScrollY <= 100);
 
     // Add listeners to BOTH window AND body
-    console.log("➕ Adding scroll listeners to BOTH window AND body");
     window.addEventListener("scroll", handleScroll, { passive: true });
     document.body?.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
-      console.log("🧹 Cleaning up both scroll listeners");
       window.removeEventListener("scroll", handleScroll);
       document.body?.removeEventListener("scroll", handleScroll);
     };
@@ -116,6 +94,14 @@ export function Navigation() {
                 }`}
               >
                 Projects
+              </Link>
+              <Link
+                href="/disclaimer"
+                className={`text-white/80 hover:text-white transition-colors font-medium text-sm sm:text-base lg:text-lg ${
+                  pathname === "/disclaimer" ? "text-white" : ""
+                }`}
+              >
+                Disclaimer
               </Link>
             </div>
           </div>

@@ -57,48 +57,45 @@ export function FadeInFooter({ children, className = "" }: FadeInFooterProps) {
         const entry = entries[0];
         if (entry) {
           // Show footer when sentinel is intersecting
-          // On short pages, sentinel will be immediately visible
           setIsVisible(entry.isIntersecting);
         }
       },
       {
-        threshold: 0.1, // Reduced threshold for better detection on short pages
-        rootMargin: "0px 0px -10px 0px", // Small bottom margin to ensure proper triggering
+        threshold: 0.1,
+        rootMargin: "0px 0px -10px 0px",
       }
     );
 
     observer.observe(sentinel);
 
-    // Check initial state immediately and add fallback
+    // Check initial state
     const checkInitialState = () => {
       const rect = sentinel.getBoundingClientRect();
       const isInView = rect.top < window.innerHeight && rect.bottom > 0;
 
-      // Debug logging (remove in production)
-      if (process.env.NODE_ENV === "development") {
-        console.log("Footer Debug:", {
-          isInView,
-          sentinelTop: rect.top,
-          sentinelBottom: rect.bottom,
-          windowHeight: window.innerHeight,
-          scrollHeight: document.documentElement.scrollHeight,
-          clientHeight: document.documentElement.clientHeight,
-        });
-      }
+      // Check if we're on a full-height tool page
+      const isFullHeightPage =
+        window.location.pathname.includes("/route-builder") ||
+        window.location.pathname.includes("/map-crosshair");
 
-      // Show footer if sentinel is in view OR if page doesn't need scrolling
-      const pageNeedsScrolling =
-        document.documentElement.scrollHeight >
-        document.documentElement.clientHeight + 50;
+      // For full-height pages, only show footer if sentinel is actually visible (user scrolled down)
+      // For regular pages, show footer if sentinel is in view OR if page doesn't need scrolling
+      if (isFullHeightPage) {
+        setIsVisible(isInView);
+      } else {
+        const pageNeedsScrolling =
+          document.documentElement.scrollHeight >
+          document.documentElement.clientHeight + 50;
 
-      if (isInView || !pageNeedsScrolling) {
-        setIsVisible(true);
+        if (isInView || !pageNeedsScrolling) {
+          setIsVisible(true);
+        }
       }
     };
 
     // Use multiple timing strategies to ensure detection
     requestAnimationFrame(checkInitialState);
-    setTimeout(checkInitialState, 100); // Fallback timing
+    setTimeout(checkInitialState, 100);
 
     return () => {
       observer.disconnect();
@@ -144,12 +141,26 @@ export function DefaultFadeInFooter() {
     <FadeInFooter className="p-3 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         <div className="bg-white/10 backdrop-blur-md rounded-full px-4 sm:px-6 lg:px-8 py-3 lg:py-4 border border-white/20">
-          <div className="flex items-center justify-center">
-            <div className="text-center">
+          <div className="flex items-center justify-between">
+            {/* Left spacer for centering */}
+            <div className="w-0 sm:w-0 lg:w-0"></div>
+
+            {/* Centered copyright */}
+            <div className="text-center flex-1">
               <p className="text-white/80 text-sm sm:text-base lg:text-lg font-medium">
                 &copy; {new Date().getFullYear()} Effe Doppia Vu. All rights
                 reserved.
               </p>
+            </div>
+
+            {/* Right disclaimer link */}
+            <div className="flex-shrink-0">
+              <a
+                href="/disclaimer"
+                className="text-white/60 hover:text-white transition-colors text-xs sm:text-sm underline"
+              >
+                Disclaimer
+              </a>
             </div>
           </div>
         </div>
