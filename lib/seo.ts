@@ -49,6 +49,13 @@ const baseMetadata = {
     telephone: false,
   },
   category: "Navigation Tools",
+  applicationName: APP_NAME,
+  classification: "Navigation & Travel Tools",
+  other: {
+    "category": "Navigation Tools",
+    "industry": "Maritime & Travel",
+    "purpose": "Professional Navigation Tools",
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
