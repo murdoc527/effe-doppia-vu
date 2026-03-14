@@ -23,43 +23,44 @@ export const viewport = baseViewport;
 
 export default function MapCrosshairPage() {
   return (
-    <main className="relative h-screen w-full overflow-hidden">
-      {/* Floating Navigation Header */}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 flex gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="border-white/30 bg-black/60 backdrop-blur-sm text-white hover:bg-white/20 hover:text-white shadow-lg"
-          asChild
-        >
-          <Link
-            href="/tools/lat-long-converter"
-            className="flex items-center gap-2"
+    <main className="min-h-[calc(100vh-160px)] flex flex-col justify-center py-4 sm:py-6 lg:py-8 px-3 sm:px-4 md:px-6 lg:px-8 pt-20 sm:pt-24 lg:pt-28">
+      <div className="max-w-6xl mx-auto w-full space-y-4">
+        {/* Navigation Header */}
+        <div className="flex justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-white/30 text-white hover:bg-white/20 hover:text-white"
+            asChild
           >
-            <Navigation className="w-4 h-4" />
-            Standard Converter
-          </Link>
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          className="bg-blue-600/90 backdrop-blur-sm hover:bg-blue-700 text-white border-blue-600 shadow-lg"
-          asChild
-        >
-          <span className="flex items-center gap-2">
-            <Map className="w-4 h-4" />
-            Interactive Map
-          </span>
-        </Button>
-      </div>
+            <Link
+              href="/tools/lat-long-converter"
+              className="flex items-center gap-2"
+            >
+              <Navigation className="w-4 h-4" />
+              Standard Converter
+            </Link>
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+            asChild
+          >
+            <span className="flex items-center gap-2">
+              <Map className="w-4 h-4" />
+              Interactive Map
+            </span>
+          </Button>
+        </div>
 
-      {/* Full-screen Map */}
-      <GoogleMapsCrosshairWrapper
-        height="100vh"
-        initialCenter={[-0.1278, 51.5074]} // London
-        initialZoom={12}
-        apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}
-      />
+        <GoogleMapsCrosshairWrapper
+          height={500}
+          initialCenter={[-0.1278, 51.5074]} // London
+          initialZoom={12}
+          apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}
+        />
+      </div>
     </main>
   );
 }

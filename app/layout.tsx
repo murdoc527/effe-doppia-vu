@@ -2,13 +2,14 @@ import type React from "react";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import "./globals.css";
-import { Navigation } from "@/components/navigation";
-import { DefaultFadeInFooter } from "@/components/FadeInFooter";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SkipLinks } from "@/components/SkipLinks";
 import { AppWrapper } from "@/components/app-wrapper";
 import { Analytics } from "@/components/analytics";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { pageMetadata, generateStructuredData } from "@/lib/seo";
+import { DesignProvider } from "@/contexts/design-context";
+import DesignWrapper from "@/components/design-wrapper";
 
 export const metadata = pageMetadata.home;
 
@@ -41,15 +42,11 @@ html {
       >
         <SkipLinks />
         <ErrorBoundary>
-          <AppWrapper>
-            <nav id="navigation" role="navigation" aria-label="Main navigation">
-              <Navigation />
-            </nav>
-            <main id="main-content" role="main">
-              <div style={{ minHeight: "calc(100vh - 200px)" }}>{children}</div>
-            </main>
-            <DefaultFadeInFooter />
-          </AppWrapper>
+          <DesignProvider>
+            <AppWrapper>
+              <DesignWrapper>{children}</DesignWrapper>
+            </AppWrapper>
+          </DesignProvider>
         </ErrorBoundary>
 
         {/* Structured data for SEO */}
@@ -65,6 +62,7 @@ html {
 
         {/* Google Analytics */}
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

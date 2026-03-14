@@ -158,3 +158,142 @@
     }
   }
 }
+
+/* ================================
+   TERMINAL DESIGN MODE STYLES
+   ================================ */
+
+body.design-terminal {
+  background: #000000 !important;
+  color: #00ff00 !important;
+  font-family: 'Courier New', 'Courier', monospace !important;
+}
+
+body.design-terminal h1,
+body.design-terminal h2,
+body.design-terminal h3,
+body.design-terminal h4,
+body.design-terminal h5,
+body.design-terminal h6 {
+  color: #00ff00 !important;
+  font-family: 'Courier New', 'Courier', monospace !important;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+}
+
+body.design-terminal p,
+body.design-terminal span,
+body.design-terminal div {
+  color: #00ff00 !important;
+}
+
+body.design-terminal a {
+  color: #00ff00 !important;
+  text-decoration: none;
+  border-bottom: 1px solid #00ff00;
+}
+
+body.design-terminal a:hover {
+  color: #00ff00 !important;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.8);
+}
+
+/* Terminal-style cards */
+body.design-terminal .card,
+body.design-terminal [class*="card"] {
+  background: rgba(0, 0, 0, 0.9) !important;
+  border: 1px solid #00ff00 !important;
+  border-radius: 0 !important;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3) !important;
+}
+
+/* Terminal-style inputs */
+body.design-terminal input,
+body.design-terminal select,
+body.design-terminal textarea {
+  background: #000000 !important;
+  color: #00ff00 !important;
+  border: 1px solid #00ff00 !important;
+  border-radius: 0 !important;
+  font-family: 'Courier New', 'Courier', monospace !important;
+  caret-color: #00ff00 !important;
+}
+
+body.design-terminal input::placeholder,
+body.design-terminal textarea::placeholder {
+  color: rgba(0, 255, 0, 0.4) !important;
+}
+
+body.design-terminal input:focus,
+body.design-terminal select:focus,
+body.design-terminal textarea:focus {
+  outline: none !important;
+  border-color: #00ff00 !important;
+  box-shadow: 0 0 5px rgba(0, 255, 0, 0.5) !important;
+}
+
+/* Terminal-style buttons */
+body.design-terminal button {
+  background: #000000 !important;
+  color: #00ff00 !important;
+  border: 1px solid #00ff00 !important;
+  border-radius: 0 !important;
+  font-family: 'Courier New', 'Courier', monospace !important;
+  transition: all 0.2s ease;
+}
+
+body.design-terminal button:hover {
+  background: #00ff00 !important;
+  color: #000000 !important;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.5) !important;
+}
+
+body.design-terminal button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Terminal-style labels */
+body.design-terminal label {
+  color: #00ff00 !important;
+  font-family: 'Courier New', 'Courier', monospace !important;
+  font-weight: bold;
+}
+
+/* Terminal scrollbar */
+body.design-terminal ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+body.design-terminal ::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+body.design-terminal ::-webkit-scrollbar-thumb {
+  background: #00ff00;
+  border: 1px solid #00ff00;
+}
+
+body.design-terminal ::-webkit-scrollbar-thumb:hover {
+  background: #00dd00;
+}
+
+/* Terminal selection */
+body.design-terminal ::selection {
+  background: #00ff00;
+  color: #000000;
+}
+
+/* Blinking cursor animation */
+@keyframes terminal-blink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+
+.terminal-cursor {
+  animation: terminal-blink 1s infinite;
+}
